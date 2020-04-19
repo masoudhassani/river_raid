@@ -1,5 +1,5 @@
 Basic:
     sound: 1     # 0: no sound, 1: with sound
-    speed: 10
+    speed: 0.1
     width: 550
     height: 900    
