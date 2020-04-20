@@ -2,5 +2,5 @@ Basic:
     sound: 1     # 0: no sound, 1: with sound
     player_speed: 0.1
     enemy_speed: 0.05
-    width: 550
-    height: 900    
+    width: 800
+    height: 600    

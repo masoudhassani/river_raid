@@ -2,7 +2,7 @@ import pygame as pg
 import yaml
 import random
 from modules import InitDeck
-from modules import Player, Enemy
+from modules import Player, Enemy, Bullet
 
 # initialize the pygame library
 pg.init()
@@ -18,6 +18,7 @@ player_name = 'player'
 # box collision geometry dimension
 cg = {
     'player': (28,26),
+    'bullet': (2,8),
     'helicopter': (32,20),
     'ship': (64,16)
 }
@@ -29,11 +30,18 @@ pg.display.set_caption('River Raid 2020')
 icon = pg.image.load('media/icon/jetfighter.png')
 pg.display.set_icon(icon)
 bkg = ((0, 50, 255))   # screen background color RGB 
+init_player_pos = [w/2, h-50]
+bullet_speed_factor = 6
 
-# setup player 
+# setup player and bullet
 player = Player(scr=screen, name=player_name, ent_type='player', 
-                cg=cg['player'], pos=[w/2, h-50], icon= 'media/icon/jetfighter.png', 
+                cg=cg['player'], pos=init_player_pos, icon= 'media/icon/jetfighter.png', 
                 v_speed=settings['player_speed'], h_speed=settings['player_speed'])
+
+bullet = Bullet(scr=screen, name='bullet', ent_type='bullet', 
+                cg=cg['bullet'], pos=init_player_pos, icon= 'media/icon/bullet.png', 
+                v_speed=settings['player_speed']*bullet_speed_factor, h_speed=0, 
+                player_cg=cg['player'])
 
 # setup enemies
 max_num_enemy = 2
@@ -91,6 +99,10 @@ while is_running:
     # update player position
     player.set_walls(walls)
     player.update(keys) 
+
+    # update bullet 
+    bullet.set_walls(walls)
+    bullet.update(keys, player.pos, hit=False)     
 
     for e in enemies:
         # update enemy position 
