@@ -38,17 +38,24 @@ class InitDeck():
                     else:
                         self.sound = (setting[setting_preset]["sound"])
 
-                    if not "speed" in setting[setting_preset]:
+                    if not "player_speed" in setting[setting_preset]:
                         logging.warn('speed tag missing in {}'.format(setting_path))
                         sys.exit(1)
                     else:
-                        self.speed = (setting[setting_preset]["speed"])     
-        
+                        self.player_speed = (setting[setting_preset]["player_speed"])     
+
+                    if not "enemy_speed" in setting[setting_preset]:
+                        logging.warn('speed tag missing in {}'.format(setting_path))
+                        sys.exit(1)
+                    else:
+                        self.enemy_speed = (setting[setting_preset]["enemy_speed"])    
+
     def load(self):
         setting = {
             'width': self.width,
             'height': self.height,
-            'speed': float(self.speed),
+            'player_speed': float(self.player_speed),
+            'enemy_speed': float(self.enemy_speed),
             'sound': self.sound
         }
         return setting

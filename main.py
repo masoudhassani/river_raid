@@ -1,7 +1,7 @@
 import pygame as pg
 import yaml
 from modules import InitDeck
-from modules import Player
+from modules import Player, Enemy
 
 # initialize the pygame library
 pg.init()
@@ -11,7 +11,6 @@ loader = InitDeck(preset='Basic')
 settings = loader.load()
 w = settings['width']
 h = settings['height']
-s = settings['speed']
 
 # hard coded game settings for calculation
 player_name = 'player'
@@ -29,9 +28,19 @@ bkg = ((0, 50, 255))   # screen background color RGB
 
 # setup player 
 player = Player(scr=screen, name=player_name, ent_type='player', 
-                cg=player_cg, pos=[w/2, h-50], icon= 'media/icon/jetfighter.png', speed=s)
+                cg=player_cg, pos=[w/2, h-50], icon= 'media/icon/jetfighter.png', 
+                v_speed=settings['player_speed'], h_speed=settings['player_speed'])
 
 # setup enemies
+max_num_enemy = 2
+enemies = []
+icons = ['media/icon/ship.png', 'media/icon/helicopter.png']
+for i in range(max_num_enemy):
+    enemy = Enemy(scr=screen, name='ship', ent_type='enemy', 
+                    cg=ship_cg, pos=[w/(2+2*i), h-800], icon=icons[i],
+                    v_speed=settings['player_speed'], h_speed=settings['enemy_speed'])
+    enemies.append(enemy)
+
 
 # main loop
 is_running = True
@@ -51,6 +60,11 @@ while is_running:
     # update player position
     player.set_walls(walls)
     player.update(keys) 
+
+    for e in enemies:
+        # update enemy position 
+        e.set_walls(walls)
+        e.update(keys)     
 
     # render the display
     pg.display.update()
