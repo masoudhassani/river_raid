@@ -22,8 +22,12 @@ class Enemy(Entity):
         # check collision with boundaries 
         self.check_walls()
 
+        # check if enemy is not in screen, it will be removed from memory 
+        self.is_active()
+
         # draw
         self.screen.blit(self.icon, self.pos)
+
 
     def move(self):
         self.pos[0] += self.current_speed_h
@@ -31,12 +35,15 @@ class Enemy(Entity):
 
     def check_walls(self):
         # left wall collision
-        if self.pos[0] <= self.walls[0]:
+        if self.pos[0] <= self.walls[0][0]:
             self.current_speed_h *= -1
         
         # right wall collision 
-        if self.pos[0] + self.cg[0] >= self.walls[1]:
+        if self.pos[0] + self.cg[0] >= self.walls[0][1]:
             self.current_speed_h *= -1       
 
     def is_active(self):
-        return self.alive
+        if self.pos[1] > self.screen_height:
+            return False
+        else:
+            return self.alive

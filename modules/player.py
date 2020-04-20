@@ -42,9 +42,9 @@ class Player(Entity):
 
     def check_walls(self):
         # left wall collision
-        if self.pos[0] <= self.walls[0]:
-            self.pos[0] = self.walls[0]
+        if self.pos[0] <= self.walls[1][0]:
+            self.pos[0] = self.walls[1][0]
         
         # right wall collision 
-        if self.pos[0] + self.cg[0] >= self.walls[1]:
-            self.pos[0] = self.walls[1] - self.cg[0]
+        if self.pos[0] + self.cg[0] >= self.walls[1][1]:
+            self.pos[0] = self.walls[1][1] - self.cg[0]

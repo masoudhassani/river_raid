@@ -12,6 +12,7 @@ class Entity:
         self.current_speed_v = v_speed
         self.base_speed_h = h_speed
         self.base_speed_v = v_speed
+        self.screen_height = scr.get_height()
         self.alive = True
         self.icon = pg.image.load(icon)
 
@@ -33,6 +34,10 @@ class Entity:
     def set_barrier(self):
         pass
 
+    def is_active(self):
+        if self.pos[1] > self.screen_height:
+            return False
+            
     def sign(self, num):
         if num > 0:
             return 1
