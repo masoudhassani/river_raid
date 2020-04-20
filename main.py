@@ -15,14 +15,12 @@ h = settings['height']
 
 # hard coded game settings for calculation
 player_name = 'player'
+# box collision geometry dimension
 cg = {
     'player': (28,26),
     'helicopter': (32,20),
     'ship': (64,16)
 }
-player_cg = (28,26)     # box collision geometry dimension of player (w,h)
-helicopter_cg =(32,20)  # box collision geometry dimesion of enemy
-ship_cg = (64,16)       # box collision geometry dimension of enemy
 block_size = 5
 
 # setup the game display and title
