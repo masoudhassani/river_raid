@@ -1,35 +1,56 @@
 import pygame as pg
 import yaml
 from modules import InitDeck
+from modules import Player
 
 # initialize the pygame library
 pg.init()
 
 # load game settings 
-s = InitDeck(preset='Basic')
-settings = s.load()
+loader = InitDeck(preset='Basic')
+settings = loader.load()
+w = settings['width']
+h = settings['height']
+s = settings['speed']
 
 # hard coded game settings for calculation
-player_dim = (28,26)     # dimension of jet fighter square (w,h)
-helicopter_dim =(32,20)  # dimesion of enemy
-ship_dim = (64,16)       # dimension of enemy
-block_dim = 5
+player_name = 'player'
+player_cg = (28,26)     # box collision geometry dimension of player (w,h)
+helicopter_cg =(32,20)  # box collision geometry dimesion of enemy
+ship_cg = (64,16)       # box collision geometry dimension of enemy
+block_size = 5
 
 # setup the game display and title
-screen = pg.display.set_mode((settings['width'], settings['height']))
+screen = pg.display.set_mode((w, h))
 pg.display.set_caption('River Raid 2020')
 icon = pg.image.load('media/icon/jetfighter.png')
 pg.display.set_icon(icon)
-screen_fill = ((0, 50, 255))   # RGB 
+bkg = ((0, 50, 255))   # screen background color RGB 
 
+# setup player 
+player = Player(scr=screen, name=player_name, ent_type='player', 
+                cg=player_cg, pos=[w/2, h-50], icon= 'media/icon/jetfighter.png', speed=s)
+
+# setup enemies
+
+# main loop
 is_running = True
-# main game loop
 while is_running:
     # setup screen color
-    screen.fill(screen_fill)
+    screen.fill(bkg)
 
-    for event in pg.event.get():
+    # read current boundary and barrier 
+    walls = (0, w)
+
+    keys = pg.key.get_pressed() 
+    events = pg.event.get()
+    for event in events:
         if event.type == pg.QUIT:
             is_running = False    
 
+    # update player position
+    player.set_walls(walls)
+    player.update(keys) 
+
+    # render the display
     pg.display.update()

@@ -48,7 +48,7 @@ class InitDeck():
         setting = {
             'width': self.width,
             'height': self.height,
-            'speed': self.speed,
+            'speed': float(self.speed),
             'sound': self.sound
         }
         return setting
