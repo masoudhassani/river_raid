@@ -2,9 +2,6 @@ from modules import Entity
 import pygame as pg
 
 class Enemy(Entity):
-    def __init__(self, scr, name, ent_type, cg, pos, icon, v_speed, h_speed):
-        super().__init__(scr, name, ent_type, cg, pos, icon, v_speed, h_speed)
-        self.alive = True
 
     def update(self, keys): 
         # handle speed
