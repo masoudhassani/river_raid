@@ -7,7 +7,7 @@ class Bullet(Entity):
         self.state = 'ready'
         self.player_cg = player_cg
 
-    def update(self, keys, player_pos, hit): 
+    def update(self, keys, player_pos): 
         # handle movements
         if self.state == 'fired':
             self.fire()
@@ -22,7 +22,7 @@ class Bullet(Entity):
         self.check_walls()
 
         # check if bullet is not in screen, it will be removed from memory 
-        self.check_state(hit)
+        self.check_state()
 
         # draw
         self.screen.blit(self.icon, self.pos)
@@ -34,7 +34,9 @@ class Bullet(Entity):
         pass
 
     # check if the fired bullet is still in the screen
-    def check_state(self, hit):
-        if self.pos[1] < 0 or hit:
+    def check_state(self):
+        if self.pos[1] < 0:
             self.state = 'ready'
 
+    def reload(self):
+        self.state = 'ready'
