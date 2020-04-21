@@ -7,6 +7,10 @@ from modules import Entity, Player, Enemy, Bullet
 # initialize the pygame library
 pg.init()
 
+# initialize the score and its font
+score_value = 0
+font = pg.font.Font('freesansbold.ttf', 32)
+
 # load game settings 
 loader = InitDeck(preset='Basic')
 settings = loader.load()
@@ -85,6 +89,10 @@ def detect_collision(player, bullet, enemies, explosions):
 
     return explosions             
 
+def show_score():
+    # render the display
+    score = font.render('Score: {}'.format(score_value), True, (255,255,255))
+    screen.blit(score, (40, h-50))  
 
 # main loop
 is_running = True
@@ -146,5 +154,5 @@ while is_running:
         if not e.is_active():
             del e   
 
-    # render the display
+    show_score()
     pg.display.update()
