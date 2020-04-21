@@ -12,7 +12,7 @@ class Bullet(Entity):
         if self.state == 'fired':
             self.fire()
         else:
-            self.pos = [player_pos[0]+self.player_cg[0]/2, player_pos[1]+self.player_cg[1]/2]
+            self.pos = [player_pos[0]+self.player_cg[0]/2, player_pos[1]+4]
 
         # check if bullet is fired
         if keys[pg.K_SPACE] and self.state == 'ready':
