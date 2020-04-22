@@ -1,8 +1,9 @@
 
 import pygame as pg
+from pygame import mixer
 
 class Entity:
-    def __init__(self, scr, name, ent_type, cg, pos, icon, v_speed, h_speed, life_span=999999):
+    def __init__(self, scr, name, ent_type, cg, pos, icon, v_speed, h_speed, player_cg=(), sound_list=[], life_span=999999):
         self.screen = scr
         self.name = name
         self.type = ent_type
@@ -12,11 +13,19 @@ class Entity:
         self.current_speed_v = v_speed
         self.base_speed_h = h_speed
         self.base_speed_v = v_speed
+        self.player_cg = player_cg
         self.screen_height = scr.get_height()
         self.alive = True
+        self.state = 'ready'
         self.icon = pg.image.load(icon)
         self.life_span =life_span
         self.life_counter = 0
+
+        # sound stuff
+        self.sound_list = sound_list
+        self.sound_played = False
+        if len(sound_list) > 0:
+            self.sound = mixer.Sound(sound_list[0])
 
     def update(self, keys, events=[]):
         # handle speed
@@ -28,6 +37,12 @@ class Entity:
             self.current_speed_v = self.base_speed_v
         
         self.pos[1] += self.current_speed_v
+
+        # play the explosion sound 
+        if not self.sound_played:
+            pg.mixer.Channel(1).play(self.sound)
+            # self.sound.play()
+            self.sound_played = True
 
         # draw on screen
         self.screen.blit(self.icon, self.pos) 

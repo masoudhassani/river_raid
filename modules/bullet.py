@@ -1,11 +1,8 @@
 from modules import Entity
 import pygame as pg
+from pygame import mixer
 
 class Bullet(Entity):
-    def __init__(self, scr, name, ent_type, cg, pos, icon, v_speed, h_speed, player_cg):
-        super().__init__(scr, name, ent_type, cg, pos, icon, v_speed, h_speed)
-        self.state = 'ready'
-        self.player_cg = player_cg
 
     def update(self, keys, player_pos): 
         # handle movements
@@ -28,6 +25,12 @@ class Bullet(Entity):
         self.screen.blit(self.icon, self.pos)
 
     def fire(self):
+        # play the explosion sound 
+        if not self.sound_played:
+            pg.mixer.Channel(2).play(self.sound)
+            # self.sound.play()
+            self.sound_played = True
+
         self.pos[1] -= self.current_speed_v
 
     def check_walls(self):
@@ -37,6 +40,8 @@ class Bullet(Entity):
     def check_state(self):
         if self.pos[1] < 0:
             self.state = 'ready'
+            self.sound_played = False
 
     def reload(self):
         self.state = 'ready'
+        self.sound_played = False
