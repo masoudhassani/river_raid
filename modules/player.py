@@ -22,6 +22,9 @@ class Player(Entity):
         # check collision with boundaries 
         self.check_walls()
 
+        # play engine sound 
+        self.play_sound()
+
         # draw
         self.screen.blit(self.icon, self.pos)
 
@@ -45,3 +48,8 @@ class Player(Entity):
         # right wall collision 
         if self.pos[0] + self.cg[0] >= self.walls[1][1]:
             self.pos[0] = self.walls[1][1] - self.cg[0]
+
+    def play_sound(self):
+        if not self.sound_played:
+            pg.mixer.Channel(0).play(self.sound, -1)
+            self.sound_played = True

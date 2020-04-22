@@ -5,6 +5,8 @@ from modules import InitDeck
 from modules import Entity, Player, Enemy, Bullet
 
 # initialize the pygame library
+pg.mixer.pre_init(16000, -16, 5, 640)
+# pg.mixer.set_num_channels(10)
 pg.init()
 
 # initialize the score and its font
@@ -16,6 +18,7 @@ loader = InitDeck(preset='Basic')
 settings = loader.load()
 w = settings['width']
 h = settings['height']
+
 
 # hard coded game settings for calculation
 player_name = 'player'
@@ -40,12 +43,13 @@ bullet_speed_factor = 6
 # setup player and bullet
 player = Player(scr=screen, name=player_name, ent_type='player', 
                 cg=cg['player'], pos=init_player_pos, icon= 'media/icon/jetfighter.png', 
-                v_speed=settings['player_speed'], h_speed=settings['player_speed']*2)
+                v_speed=settings['player_speed'], h_speed=settings['player_speed']*2,
+                sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav'])
 
 bullet = Bullet(scr=screen, name='bullet', ent_type='bullet', 
                 cg=cg['bullet'], pos=init_player_pos, icon= 'media/icon/bullet.png', 
                 v_speed=settings['player_speed']*bullet_speed_factor, h_speed=0, 
-                player_cg=cg['player'])
+                player_cg=cg['player'], sound_list=['media/sound/bullet.wav']) 
 
 # setup enemies
 max_num_enemy = 2
@@ -72,7 +76,8 @@ def detect_collision(player, bullet, enemies, explosions):
                 e.alive = False
                 explosion =Entity(scr=screen, name='explosion', ent_type='explosion', 
                     cg=cg['player'], pos=e.pos, icon='media/icon/explosion2.png',
-                    v_speed=settings['player_speed'], h_speed=0, life_span=300)
+                    v_speed=settings['player_speed'], h_speed=0, life_span=300,
+                    sound_list=['media/sound/explosion.wav'])
                 explosions.append(explosion)
                 # score += 10
 
@@ -84,7 +89,7 @@ def detect_collision(player, bullet, enemies, explosions):
                 explosion =Entity(scr=screen, name='explosion', ent_type='explosion', 
                     cg=cg['player'], pos=[(e.pos[0]+player.pos[0])/2,(e.pos[1]+player.pos[1])/2], 
                     icon='media/icon/explosion1.png', v_speed=settings['player_speed'], 
-                    h_speed=0, life_span=300) 
+                    h_speed=0, life_span=300, sound_list=['media/sound/explosion.wav']) 
                 explosions.append(explosion)  
 
     return explosions             
