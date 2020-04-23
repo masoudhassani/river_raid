@@ -2,7 +2,7 @@ import pygame as pg
 import yaml
 import random
 from modules import InitDeck
-from modules import Entity, Player, Enemy, Bullet
+from modules import Entity, Player, Enemy, Bullet, Walls
 
 # initialize the pygame library
 pg.mixer.pre_init(16000, -16, 5, 640)
@@ -27,7 +27,8 @@ cg = {
     'player': (28,26),
     'bullet': (2,8),
     'helicopter': (32,20),
-    'ship': (64,16)
+    'ship': (64,16),
+    'prop': (64,64)
 }
 block_size = 5
 
@@ -52,11 +53,18 @@ bullet = Bullet(scr=screen, name='bullet', ent_type='bullet',
                 player_cg=cg['player'], sound_list=['media/sound/bullet.wav']) 
 
 # setup enemies
-max_num_enemy = 2
 enemy_spawn_factor = 3   # lower means more enemy is spawned 
+prop_spawn_factor = 2
 enemy_names = ['helicopter', 'ship']
+prop_names = ['prop1', 'prop2', 'prop3']
 enemies = []
+props = []
 explosions = []
+
+# setup walls 
+new_walls = Walls(scr=screen, color=(45,135,10), icons=[], normal=200, extended=100, channel=100, 
+                    max_island=w-200, min_island=200, spawn_dist=800, length=10000, randomness=0.8, 
+                    v_speed=settings['player_speed'], block_size=block_size)
 
 def create_enemies(walls):
     enemy_name = random.choice(enemy_names) 
@@ -66,6 +74,17 @@ def create_enemies(walls):
                     cg=cg[enemy_name], pos=[pos_h, 0], icon='media/icon/{}.png'.format(enemy_name),
                     v_speed=settings['player_speed'], h_speed=settings['enemy_speed']*vel_h)
     enemies.append(enemy)
+
+def create_props(walls):
+    prop_name = random.choice(prop_names) 
+    pos_h = []
+    pos_h.append(random.randint(0, walls[0][0]-cg['prop'][0]))
+    pos_h.append(random.randint(walls[0][1],w-cg['prop'][0]))
+    pos = random.choice(pos_h) 
+    prop = Enemy(scr=screen, name=prop_name, ent_type='prop', 
+                    cg=cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
+                    v_speed=settings['player_speed'], h_speed=0)
+    props.append(prop)
 
 def detect_collision(player, bullet, enemies, explosions):
     for e in enemies:
@@ -101,15 +120,17 @@ def show_score():
 
 # main loop
 is_running = True
-counter = 0
+enemy_counter = 0
+prop_counter = 0
 while is_running:
-    counter += 1
+    prop_counter += 1
+    enemy_counter += 1
 
     # setup screen color
     screen.fill(bkg)
 
     # read current boundary and barrier 
-    walls = ((0, w),(0, w))   # top, bottom
+    # walls = ((0, w),(0, w))   # top, bottom
 
     keys = pg.key.get_pressed() 
     events = pg.event.get()
@@ -117,8 +138,11 @@ while is_running:
         if event.type == pg.QUIT:
             is_running = False    
 
+    # draw walls
+    walls = new_walls.update(keys)
+
     ### ENEMY #################################################
-    # up datae enemy list 
+    # update enemy list 
     enemies = [x for x in enemies if x.is_active()]
 
     # remove enemies that are dead or out of screen
@@ -130,10 +154,29 @@ while is_running:
     if enemies == []:
         randomizer = random.randint(1, enemy_spawn_factor+1)
         create_enemies(walls)
-    elif (counter/randomizer) == 1000:
+    elif (enemy_counter/randomizer) == 500:
         randomizer = random.randint(1, enemy_spawn_factor+1)
         create_enemies(walls)
-        counter = 0
+        enemy_counter = 0
+    ############################################################
+
+    ### PROP #################################################
+    # update prop list 
+    props = [x for x in props if x.is_active()]
+
+    # remove props that are dead or out of screen
+    for p in props:
+        if not p.is_active():
+            del p
+
+    # random generation of enemies 
+    if props == []:
+        randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
+        create_props(walls)
+    elif (prop_counter/randomizer) == 500:
+        randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
+        create_props(walls)
+        prop_counter = 0
     ############################################################
 
     # update player position
@@ -143,6 +186,11 @@ while is_running:
     # update bullet 
     bullet.set_walls(walls)
     bullet.update(keys, player.pos)     
+
+    for p in props:
+        # update enemy position 
+        p.set_walls(walls)
+        p.update(keys)  
 
     for e in enemies:
         # update enemy position 
