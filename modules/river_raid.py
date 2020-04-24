@@ -133,7 +133,6 @@ class RiverRaid:
             if self.player.pos[1] <= e.pos[1]+e.cg[1] and self.player.pos[1]+self.player.cg[1] >= e.pos[1]:
                 if self.player.pos[0] < e.pos[0]+e.cg[0] and self.player.pos[0]+self.player.cg[0]> e.pos[0]:
                     e.alive = False
-                    print('you lost')
                     explosion =Entity(scr=self.screen, name='explosion', ent_type='explosion', 
                         cg=self.cg['player'], pos=[(e.pos[0]+self.player.pos[0])/2,(e.pos[1]+self.player.pos[1])/2], 
                         icon='media/icon/explosion1.png', v_speed=self.settings['player_speed'], 
