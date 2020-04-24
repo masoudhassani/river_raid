@@ -62,29 +62,47 @@ props = []
 explosions = []
 
 # setup walls 
-new_walls = Walls(scr=screen, color=(45,135,10), icons=[], normal=200, extended=100, channel=300, 
+walls = Walls(scr=screen, color=(45,135,10), icons=[], normal=200, extended=100, channel=350, 
                     max_island=w-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
                     v_speed=settings['player_speed'], block_size=block_size)
 
-def create_enemies(wall):
+def create_enemies():
     enemy_name = random.choice(enemy_names) 
-    pos_h = random.randint(wall[0],wall[1]-cg[enemy_name][0])
-    vel_h = random.randint(0,1)
-    enemy = Enemy(scr=screen, name=enemy_name, ent_type='enemy', 
-                    cg=cg[enemy_name], pos=[pos_h, 0], icon='media/icon/{}.png'.format(enemy_name),
-                    v_speed=settings['player_speed'], h_speed=settings['enemy_speed']*vel_h)
-    enemies.append(enemy)
 
-def create_props(wall):
+    # get the wall coordinate at y=0 for spawning 
+    wall_1 = walls.return_wall_coordinate(0)
+    # get the wall coordinate at the bottom of CG for spawning 
+    wall_2 = walls.return_wall_coordinate(cg[enemy_name][1])
+    # select the correct wall size 
+    if wall_1[0] >= wall_2[0]:
+        wall = wall_1
+        pos_h = random.randint(wall[0],wall[1]-cg[enemy_name][0])
+        vel_h = random.randint(0,1)
+        enemy = Enemy(scr=screen, name=enemy_name, ent_type='enemy', 
+                        cg=cg[enemy_name], pos=[pos_h, 0], icon='media/icon/{}.png'.format(enemy_name),
+                        v_speed=settings['player_speed'], h_speed=settings['enemy_speed']*vel_h)
+        enemies.append(enemy)
+        enemy.set_walls(wall)
+
+def create_props():
     prop_name = random.choice(prop_names) 
-    pos_h = []
-    pos_h.append(random.randint(0, wall[0]-cg['prop'][0]))
-    pos_h.append(random.randint(wall[1],w-cg['prop'][0]))
-    pos = random.choice(pos_h) 
-    prop = Enemy(scr=screen, name=prop_name, ent_type='prop', 
-                    cg=cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
-                    v_speed=settings['player_speed'], h_speed=0)
-    props.append(prop)
+
+    # get the wall coordinate at y=0 for spawning 
+    wall_1 = walls.return_wall_coordinate(0)
+    # get the wall coordinate at the bottom of CG for spawning 
+    wall_2 = walls.return_wall_coordinate(cg['prop'][1])
+    # select the correct wall size 
+    if wall_1[0] >= wall_2[0]:
+        wall = wall_1
+        pos_h = []
+        pos_h.append(random.randint(0, wall[0]-cg['prop'][0]))
+        pos_h.append(random.randint(wall[1],w-cg['prop'][0]))
+        pos = random.choice(pos_h) 
+        prop = Enemy(scr=screen, name=prop_name, ent_type='prop', 
+                        cg=cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
+                        v_speed=settings['player_speed'], h_speed=0)
+        props.append(prop)
+        prop.set_walls(wall)
 
 def detect_collision(player, bullet, enemies, explosions):
     for e in enemies:
@@ -129,9 +147,6 @@ while is_running:
     # setup screen color
     screen.fill(bkg)
 
-    # read current boundary and barrier 
-    # walls = ((0, w),(0, w))   # top, bottom
-
     keys = pg.key.get_pressed() 
     events = pg.event.get()
     for event in events:
@@ -139,7 +154,7 @@ while is_running:
             is_running = False    
 
     # draw walls
-    new_walls.update(keys)
+    walls.update(keys)
 
     ### ENEMY #################################################
     # update enemy list 
@@ -150,16 +165,13 @@ while is_running:
         if not e.is_active():
             del e 
 
-    # get the wall coordinate at y=0 for spawning 
-    wall_top = new_walls.return_wall_coordinate(0)
-
     # random generation of enemies 
     if enemies == []:
         randomizer = random.randint(1, enemy_spawn_factor+1)
-        create_enemies(wall_top)
+        create_enemies()
     elif (enemy_counter/randomizer) == 200:
         randomizer = random.randint(1, enemy_spawn_factor+1)
-        create_enemies(wall_top)
+        create_enemies()
         enemy_counter = 0
     ############################################################
 
@@ -175,15 +187,15 @@ while is_running:
     # random generation of enemies 
     if props == []:
         randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
-        create_props(wall_top)
+        create_props()
     elif (prop_counter/randomizer) == 200:
         randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
-        create_props(wall_top)
+        create_props()
         prop_counter = 0
     ############################################################
 
     # get the wall coordinate at the player's height 
-    wall_player = new_walls.return_wall_coordinate(player.pos[1])
+    wall_player = walls.return_wall_coordinate(player.pos[1])
 
     # update player position
     player.set_walls(wall_player)
@@ -194,12 +206,12 @@ while is_running:
     bullet.update(keys, player.pos)     
 
     for p in props:
-        p.set_walls(wall_top)
+        # p.set_walls(wall_top)
         p.update(keys)  
 
     for e in enemies:
         # update enemy position 
-        e.set_walls(wall_top)
+        # e.set_walls(wall_top)
         e.update(keys)     
 
     # check for collision between player and enemies or bullet 
