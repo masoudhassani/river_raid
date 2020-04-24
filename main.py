@@ -11,7 +11,7 @@ pg.init()
 
 # initialize the score and its font
 score_value = 0
-font = pg.font.Font('freesansbold.ttf', 32)
+font = pg.font.Font('freesansbold.ttf', 16)
 
 # load game settings 
 loader = InitDeck(preset='Basic')
@@ -53,8 +53,9 @@ bullet = Bullet(scr=screen, name='bullet', ent_type='bullet',
                 player_cg=cg['player'], sound_list=['media/sound/bullet.wav']) 
 
 # setup enemies
-enemy_spawn_factor = 1   # lower means more enemy is spawned 
-prop_spawn_factor = 2
+enemy_spawn_distance = 150   #  spawn distance in pixel,lower means more enemy is spawned 
+prop_spawn_distance = 150
+randomizer = 200
 enemy_names = ['helicopter', 'ship']
 prop_names = ['prop1', 'prop2', 'prop3']
 enemies = []
@@ -72,7 +73,7 @@ def create_enemies():
     # get the wall coordinate at y=0 for spawning 
     wall_1 = walls.return_wall_coordinate(0)
     # get the wall coordinate at the bottom of CG for spawning 
-    wall_2 = walls.return_wall_coordinate(cg[enemy_name][1])
+    wall_2 = walls.return_wall_coordinate(cg[enemy_name][1]*3)
     # select the correct wall size 
     if wall_1[0] >= wall_2[0]:
         wall = wall_1
@@ -92,17 +93,17 @@ def create_props():
     # get the wall coordinate at the bottom of CG for spawning 
     wall_2 = walls.return_wall_coordinate(cg['prop'][1])
     # select the correct wall size 
-    if wall_1[0] >= wall_2[0]:
-        wall = wall_1
-        pos_h = []
-        pos_h.append(random.randint(0, wall[0]-cg['prop'][0]))
-        pos_h.append(random.randint(wall[1],w-cg['prop'][0]))
-        pos = random.choice(pos_h) 
-        prop = Enemy(scr=screen, name=prop_name, ent_type='prop', 
-                        cg=cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
-                        v_speed=settings['player_speed'], h_speed=0)
-        props.append(prop)
-        prop.set_walls(wall)
+    wall = min(wall_1, wall_2)
+
+    pos_h = []
+    pos_h.append(random.randint(0, wall[0]-cg['prop'][0]))
+    pos_h.append(random.randint(wall[1],w-cg['prop'][0]))
+    pos = random.choice(pos_h) 
+    prop = Enemy(scr=screen, name=prop_name, ent_type='prop', 
+                    cg=cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
+                    v_speed=settings['player_speed'], h_speed=0)
+    props.append(prop)
+    prop.set_walls(wall)
 
 def detect_collision(player, bullet, enemies, explosions):
     for e in enemies:
@@ -116,7 +117,7 @@ def detect_collision(player, bullet, enemies, explosions):
                     v_speed=settings['player_speed'], h_speed=0, life_span=300,
                     sound_list=['media/sound/explosion.wav'])
                 explosions.append(explosion)
-                # score += 10
+                # score_value += 10
 
         # if the player hits the enemy
         if player.pos[1] <= e.pos[1]+e.cg[1] and player.pos[1]+player.cg[1] >= e.pos[1]:
@@ -134,15 +135,19 @@ def detect_collision(player, bullet, enemies, explosions):
 def show_score():
     # render the display
     score = font.render('Score: {}'.format(score_value), True, (255,255,255))
-    screen.blit(score, (40, h-50))  
+    screen.blit(score, (10, 20))  
+
+def show_travel(travel_distance):
+    # render the display
+    travel = font.render('Travel: {}'.format(int(travel_distance)), True, (255,255,255))
+    screen.blit(travel, (10, 60))  
 
 # main loop
 is_running = True
-enemy_counter = 0
-prop_counter = 0
+travel_distance = 0
+last_enemey_spawn = 0
+last_prop_spawn = 0
 while is_running:
-    prop_counter += 1
-    enemy_counter += 1
 
     # setup screen color
     screen.fill(bkg)
@@ -165,14 +170,10 @@ while is_running:
         if not e.is_active():
             del e 
 
-    # random generation of enemies 
-    if enemies == []:
-        randomizer = random.randint(1, enemy_spawn_factor+1)
+    if (travel_distance-last_enemey_spawn) > randomizer:
+        last_enemey_spawn = travel_distance
+        randomizer = random.randint(enemy_spawn_distance*0.5, enemy_spawn_distance*1.5)
         create_enemies()
-    elif (enemy_counter/randomizer) == 200:
-        randomizer = random.randint(1, enemy_spawn_factor+1)
-        create_enemies()
-        enemy_counter = 0
     ############################################################
 
     ### PROP #################################################
@@ -184,14 +185,10 @@ while is_running:
         if not p.is_active():
             del p
 
-    # random generation of enemies 
-    if props == []:
-        randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
+    if (travel_distance-last_prop_spawn) > randomizer:
+        last_prop_spawn = travel_distance
+        randomizer = random.randint(prop_spawn_distance*0.3, prop_spawn_distance*1.3)
         create_props()
-    elif (prop_counter/randomizer) == 200:
-        randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
-        create_props()
-        prop_counter = 0
     ############################################################
 
     # get the wall coordinate at the player's height 
@@ -199,7 +196,7 @@ while is_running:
 
     # update player position
     player.set_walls(wall_player)
-    player.update(keys) 
+    travel_distance = player.update(keys) 
 
     # update bullet 
     # bullet.set_walls(wall)
@@ -225,4 +222,5 @@ while is_running:
             del e   
 
     show_score()
+    # show_travel(travel_distance)
     pg.display.update()

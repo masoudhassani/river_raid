@@ -20,6 +20,7 @@ class Entity:
         self.icon = pg.image.load(icon)
         self.life_span =life_span
         self.life_counter = 0
+        self.travel_total = 0
 
         # sound stuff
         self.sound_list = sound_list
@@ -58,6 +59,9 @@ class Entity:
 
     def set_barrier(self):
         pass
+
+    def update_odometer(self):
+        self.travel_total += self.current_speed_v
 
     def is_active(self):
         if self.type == 'explosion':

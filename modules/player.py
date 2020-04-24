@@ -22,11 +22,16 @@ class Player(Entity):
         # check collision with boundaries 
         self.check_walls()
 
+        # update travel distance 
+        self.update_odometer()
+
         # play engine sound 
         self.play_sound()
 
         # draw
         self.screen.blit(self.icon, self.pos)
+
+        return self.travel_total
 
     def move_right(self):
         self.pos[0] += self.current_speed_h
