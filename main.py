@@ -53,7 +53,7 @@ bullet = Bullet(scr=screen, name='bullet', ent_type='bullet',
                 player_cg=cg['player'], sound_list=['media/sound/bullet.wav']) 
 
 # setup enemies
-enemy_spawn_factor = 3   # lower means more enemy is spawned 
+enemy_spawn_factor = 1   # lower means more enemy is spawned 
 prop_spawn_factor = 2
 enemy_names = ['helicopter', 'ship']
 prop_names = ['prop1', 'prop2', 'prop3']
@@ -62,24 +62,24 @@ props = []
 explosions = []
 
 # setup walls 
-new_walls = Walls(scr=screen, color=(45,135,10), icons=[], normal=200, extended=100, channel=100, 
-                    max_island=w-200, min_island=200, spawn_dist=800, length=10000, randomness=0.8, 
+new_walls = Walls(scr=screen, color=(45,135,10), icons=[], normal=200, extended=100, channel=300, 
+                    max_island=w-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
                     v_speed=settings['player_speed'], block_size=block_size)
 
-def create_enemies(walls):
+def create_enemies(wall):
     enemy_name = random.choice(enemy_names) 
-    pos_h = random.randint(walls[0][0],walls[0][1]-cg[enemy_name][0])
+    pos_h = random.randint(wall[0],wall[1]-cg[enemy_name][0])
     vel_h = random.randint(0,1)
     enemy = Enemy(scr=screen, name=enemy_name, ent_type='enemy', 
                     cg=cg[enemy_name], pos=[pos_h, 0], icon='media/icon/{}.png'.format(enemy_name),
                     v_speed=settings['player_speed'], h_speed=settings['enemy_speed']*vel_h)
     enemies.append(enemy)
 
-def create_props(walls):
+def create_props(wall):
     prop_name = random.choice(prop_names) 
     pos_h = []
-    pos_h.append(random.randint(0, walls[0][0]-cg['prop'][0]))
-    pos_h.append(random.randint(walls[0][1],w-cg['prop'][0]))
+    pos_h.append(random.randint(0, wall[0]-cg['prop'][0]))
+    pos_h.append(random.randint(wall[1],w-cg['prop'][0]))
     pos = random.choice(pos_h) 
     prop = Enemy(scr=screen, name=prop_name, ent_type='prop', 
                     cg=cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
@@ -139,7 +139,7 @@ while is_running:
             is_running = False    
 
     # draw walls
-    walls = new_walls.update(keys)
+    new_walls.update(keys)
 
     ### ENEMY #################################################
     # update enemy list 
@@ -150,13 +150,16 @@ while is_running:
         if not e.is_active():
             del e 
 
+    # get the wall coordinate at y=0 for spawning 
+    wall_top = new_walls.return_wall_coordinate(0)
+
     # random generation of enemies 
     if enemies == []:
         randomizer = random.randint(1, enemy_spawn_factor+1)
-        create_enemies(walls)
-    elif (enemy_counter/randomizer) == 500:
+        create_enemies(wall_top)
+    elif (enemy_counter/randomizer) == 200:
         randomizer = random.randint(1, enemy_spawn_factor+1)
-        create_enemies(walls)
+        create_enemies(wall_top)
         enemy_counter = 0
     ############################################################
 
@@ -172,29 +175,31 @@ while is_running:
     # random generation of enemies 
     if props == []:
         randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
-        create_props(walls)
-    elif (prop_counter/randomizer) == 500:
+        create_props(wall_top)
+    elif (prop_counter/randomizer) == 200:
         randomizer = random.randint(prop_spawn_factor-1, prop_spawn_factor+1)
-        create_props(walls)
+        create_props(wall_top)
         prop_counter = 0
     ############################################################
 
+    # get the wall coordinate at the player's height 
+    wall_player = new_walls.return_wall_coordinate(player.pos[1])
+
     # update player position
-    player.set_walls(walls)
+    player.set_walls(wall_player)
     player.update(keys) 
 
     # update bullet 
-    bullet.set_walls(walls)
+    # bullet.set_walls(wall)
     bullet.update(keys, player.pos)     
 
     for p in props:
-        # update enemy position 
-        p.set_walls(walls)
+        p.set_walls(wall_top)
         p.update(keys)  
 
     for e in enemies:
         # update enemy position 
-        e.set_walls(walls)
+        e.set_walls(wall_top)
         e.update(keys)     
 
     # check for collision between player and enemies or bullet 

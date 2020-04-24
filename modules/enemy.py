@@ -31,11 +31,11 @@ class Enemy(Entity):
 
     def check_walls(self):
         # left wall collision
-        if self.pos[0] <= self.walls[0][0]:
+        if self.pos[0] <= self.walls[0]:
             self.current_speed_h *= -1
         
         # right wall collision 
-        if self.pos[0] + self.cg[0] >= self.walls[0][1]:
+        if self.pos[0] + self.cg[0] >= self.walls[1]:
             self.current_speed_h *= -1       
 
     def is_active(self):
