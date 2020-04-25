@@ -23,7 +23,7 @@ class Enemy(Entity):
         self.is_active()
 
         # draw
-        self.screen.blit(self.icon, self.pos)
+        self.screen.blit(self.icons[0], self.pos)
 
     def move(self):
         self.pos[0] += self.current_speed_h
