@@ -1,6 +1,7 @@
 import pygame as pg
 import yaml
 import random
+import time
 from modules import InitDeck
 from modules import Entity, Player, Enemy, Bullet, Walls
 
@@ -17,9 +18,14 @@ class RiverRaid:
         # pg.mixer.set_num_channels(10)
         pg.init()
 
+        # initialize clock
+        self.clock = pg.time.Clock()
+        self.FPS = 60
+
         # initialize the score and its font
         self.score_value = 0
-        self.font = pg.font.Font('freesansbold.ttf', 16)
+        self.font_small = pg.font.Font('freesansbold.ttf', 16)
+        self.font_large = pg.font.Font('freesansbold.ttf', 48)
 
         # load game settings 
         loader = InitDeck(preset='Basic')
@@ -49,12 +55,12 @@ class RiverRaid:
         init_player_pos = [self.settings['width']/2, self.settings['height']-50]
         bullet_speed_factor = 6
         self.player = Player(scr=self.screen, name=player_name, ent_type='player', 
-                        cg=self.cg['player'], pos=init_player_pos, icon= 'media/icon/jetfighter.png', 
+                        cg=self.cg['player'], pos=init_player_pos, icons=['media/icon/jetfighter.png','media/icon/explosion2.png'], 
                         v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed']*2,
                         sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav'])
 
         self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
-                        cg=self.cg['bullet'], pos=init_player_pos, icon= 'media/icon/bullet.png', 
+                        cg=self.cg['bullet'], pos=init_player_pos, icons=['media/icon/bullet.png'], 
                         v_speed=self.settings['player_speed']*bullet_speed_factor, h_speed=0, 
                         player_cg=self.cg['player'], sound_list=['media/sound/bullet.wav']) 
 
@@ -72,6 +78,9 @@ class RiverRaid:
         self.travel_distance = 0
         self.last_enemey_spawn = 0
         self.last_prop_spawn = 0      
+        self.lives_left = self.settings['num_lives']
+        self.reset = False
+        self.game_paused = False
 
     def create_enemies(self):
         enemy_name = random.choice(self.enemy_names) 
@@ -86,7 +95,7 @@ class RiverRaid:
             pos_h = random.randint(wall[0],wall[1]-self.cg[enemy_name][0])
             vel_h = random.randint(0,1)
             enemy = Enemy(scr=self.screen, name=enemy_name, ent_type='enemy', 
-                            cg=self.cg[enemy_name], pos=[pos_h, 0], icon='media/icon/{}.png'.format(enemy_name),
+                            cg=self.cg[enemy_name], pos=[pos_h, 0], icons=['media/icon/{}.png'.format(enemy_name)],
                             v_speed=self.settings['player_speed'], h_speed=self.settings['enemy_speed']*vel_h)
             self.enemies.append(enemy)
             enemy.set_walls(wall)
@@ -106,21 +115,21 @@ class RiverRaid:
         pos_h.append(random.randint(wall[1],self.settings['width']-self.cg['prop'][0]))
         pos = random.choice(pos_h) 
         prop = Enemy(scr=self.screen, name=prop_name, ent_type='prop', 
-                        cg=self.cg['prop'], pos=[pos, 0], icon='media/icon/{}.png'.format(prop_name),
+                        cg=self.cg['prop'], pos=[pos, 0], icons=['media/icon/{}.png'.format(prop_name)],
                         v_speed=self.settings['player_speed'], h_speed=0)
         self.props.append(prop)
         prop.set_walls(wall)
 
-    def detect_collision(self):
+    def enemy_collision(self):
         for e in self.enemies:
             # if the bullet hits the enemy
             if self.bullet.pos[1] <= e.pos[1]+e.cg[1] and self.bullet.pos[1]+self.bullet.cg[1] >= e.pos[1]:
                 if self.bullet.pos[0] < e.pos[0]+e.cg[0] and self.bullet.pos[0]+self.bullet.cg[0]> e.pos[0]:
                     self.bullet.reload()
                     e.alive = False
-                    explosion =Entity(scr=self.screen, name='explosion', ent_type='explosion', 
-                        cg=self.cg['player'], pos=e.pos, icon='media/icon/explosion1.png',
-                        v_speed=self.settings['player_speed'], h_speed=0, life_span=300,
+                    explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
+                        cg=self.cg['player'], pos=e.pos, icons=['media/icon/explosion2.png'],
+                        v_speed=self.settings['player_speed'], h_speed=0, life_span=100,
                         sound_list=['media/sound/explosion.wav'])
 
                     self.explosions.append(explosion)
@@ -133,35 +142,121 @@ class RiverRaid:
             if self.player.pos[1] <= e.pos[1]+e.cg[1] and self.player.pos[1]+self.player.cg[1] >= e.pos[1]:
                 if self.player.pos[0] < e.pos[0]+e.cg[0] and self.player.pos[0]+self.player.cg[0]> e.pos[0]:
                     e.alive = False
-                    explosion =Entity(scr=self.screen, name='explosion', ent_type='explosion', 
+                    self.player.alive = False
+                    self.lives_left -= 1
+                    explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
                         cg=self.cg['player'], pos=[(e.pos[0]+self.player.pos[0])/2,(e.pos[1]+self.player.pos[1])/2], 
-                        icon='media/icon/explosion1.png', v_speed=self.settings['player_speed'], 
-                        h_speed=0, life_span=300, sound_list=['media/sound/explosion.wav']) 
+                        icons=['media/icon/explosion1.png'], v_speed=self.settings['player_speed'], 
+                        h_speed=0, life_span=100, sound_list=['media/sound/explosion.wav']) 
 
-                    self.explosions.append(explosion)           
+                    self.explosions.append(explosion)  
+                    if e.name == 'helicopter':
+                        self.score_value += 60
+                    elif e.name == 'ship':
+                        self.score_value += 40
+
+                    return True 
+            
+        return False
+
+    def wall_collision(self):
+        wall_1 = self.walls.return_wall_coordinate(self.player.pos[1])
+        wall_2 = self.walls.return_wall_coordinate(self.player.pos[1]+self.player.cg[1])
+
+        # if the bullet hits the horizontal wall, it will disapear and reload
+        wall_3 = self.walls.return_wall_coordinate(self.bullet.pos[1])
+        if self.bullet.pos[0] < wall_3[0] or self.bullet.pos[0]+self.bullet.cg[0] > wall_3[1]: 
+            self.bullet.reload()
+
+        # if the player hits the wall
+        if (self.player.pos[0] < wall_1[0] or self.player.pos[0]+self.player.cg[0] > wall_1[1] 
+                or self.player.pos[0] < wall_2[0] or self.player.pos[0]+self.player.cg[0] > wall_2[1]):
+
+            self.lives_left -= 1
+            self.player.alive = False
+            explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
+                cg=self.cg['player'], pos=[self.player.pos[0],self.player.pos[1]], 
+                icons=['media/icon/explosion1.png'], v_speed=self.settings['player_speed'], 
+                h_speed=0, life_span=100, sound_list=['media/sound/explosion.wav']) 
+            
+            self.explosions.append(explosion)
+            return True 
+
+        return False
 
     def show_score(self):
         # render the display
-        score = self.font.render('Score: {}'.format(self.score_value), True, (255,255,255))
+        score = self.font_small.render('Score: {}'.format(self.score_value), True, (255,255,255))
         self.screen.blit(score, (10, 20))  
 
     def show_travel(self):
         # render the display
-        travel = self.font.render('Travel: {}'.format(int(self.travel_distance)), True, (255,255,255))
-        self.screen.blit(travel, (10, 60))  
+        travel = self.font_small.render('Travel: {} km'.format(int(self.travel_distance/1000)), True, (255,255,255))
+        self.screen.blit(travel, (10, 100))  
 
+    def show_lives(self):
+        # render the display
+        lives = self.font_small.render('Lives: {}'.format(int(self.lives_left)), True, (255,255,255))
+        self.screen.blit(lives, (10, 60)) 
+
+    def show_on_screen(self, val, x, y, color=(255,255,255)):
+        render = self.font_large.render(str(val), True, color)
+        self.screen.blit(render, (x, y))         
+
+    def reset_game(self, delay):
+        paused = True
+        timer = 0
+        t0 = int(time.time()*1000.0)
+        for e in self.explosions:
+            e.alive = False 
+
+        while paused:
+            timer = int(time.time()*1000.0) - t0
+            if timer > delay:
+                paused = False
+
+    def pause_game(self):
+        paused = True
+        while paused:
+            self.player.pause()
+            self.show_on_screen('PAUSED', self.settings['width']/2 - 100, self.settings['height']/2)
+            pg.display.update()
+            events = pg.event.get()
+            for event in events:
+                if event.type == pg.QUIT:
+                    self.is_running = False  
+                elif event.type == pg.KEYDOWN:
+                    if event.key == pg.K_p:
+                        self.game_paused = False
+                        paused = False
+
+    '''
+    main class method
+    '''
     def update(self):
+        
         # setup screen color
         self.screen.fill(self.background)
 
         keys = pg.key.get_pressed() 
+
         events = pg.event.get()
         for event in events:
             if event.type == pg.QUIT:
-                self.is_running = False    
+                self.is_running = False  
+            elif event.type == pg.KEYDOWN:
+                if event.key == pg.K_p:
+                    self.game_paused = True
+
+        if self.game_paused:
+            self.pause_game()
 
         # draw walls
         self.walls.update(keys)
+
+        # check for collision between player, enemies, bullet and walls
+        enemy_col = self.enemy_collision()
+        wall_col = self.wall_collision()
 
         ### ENEMY #################################################
         # update enemy list 
@@ -207,11 +302,9 @@ class RiverRaid:
         for p in self.props:
             p.update(keys)  
 
-        for e in self.enemies:
+        for e in self.enemies: 
             e.update(keys)     
 
-        # check for collision between player and enemies or bullet 
-        self.detect_collision()
         self.explosions = [x for x in self.explosions if x.is_active()]
 
         # remove enemies that are dead or out of screen
@@ -221,7 +314,21 @@ class RiverRaid:
                 del e   
 
         self.show_score()
-        # show_travel()
+        self.show_lives()
+        self.clock.tick(self.FPS)
+        self.show_travel()
         pg.display.update()
+
+        if enemy_col or wall_col:
+            if self.lives_left < 1:
+                self.is_running = False
+            else:
+                self.reset = True
+
+        if self.reset:
+            self.reset_game(2000)
+            self.player.reset()
+            keys = ()
+            self.reset = False 
 
         return self.is_running

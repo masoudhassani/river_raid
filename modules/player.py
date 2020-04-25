@@ -19,8 +19,11 @@ class Player(Entity):
             self.current_speed_h = self.base_speed_h
             self.current_speed_v = self.base_speed_v
         
-        # check collision with boundaries 
-        self.check_walls()
+        # no passing from boundaries 
+        # self.check_walls()
+
+        # check player life
+        icon = self.check_life()
 
         # update travel distance 
         self.update_odometer()
@@ -29,7 +32,7 @@ class Player(Entity):
         self.play_sound()
 
         # draw
-        self.screen.blit(self.icon, self.pos)
+        self.screen.blit(icon, self.pos)
 
         return self.travel_total
 
@@ -55,6 +58,28 @@ class Player(Entity):
             self.pos[0] = self.walls[1] - self.cg[0]
 
     def play_sound(self):
-        if not self.sound_played:
-            pg.mixer.Channel(0).play(self.sound, -1)
-            self.sound_played = True
+        if self.alive:
+            if not self.sound_played:
+                pg.mixer.Channel(0).play(self.sound, -1)
+                self.sound_played = True
+        else:
+            pg.mixer.Channel(0).pause()
+            self.sound_played = False
+
+    def pause(self):
+        pg.mixer.Channel(0).pause()
+        self.sound_played = False
+
+    def check_life(self):
+        if not self.alive:
+            icon = self.icons[1]
+        else:
+            icon = self.icons[0]
+
+        return icon 
+
+    def reset(self):
+        self.alive = True 
+        self.pos = self.init_pos.copy()
+        
+        
