@@ -5,3 +5,12 @@ Basic:
     num_lives: 3
     width: 800
     height: 600    
+
+Covid:
+    sound: 1     # 0: no sound, 1: with sound
+    player_speed: 1
+    enemy_speed: 2
+    num_lives: 3
+    width: 800
+    height: 600    
+
