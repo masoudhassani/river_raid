@@ -6,7 +6,7 @@ from modules import InitDeck
 from modules import Entity, Player, Enemy, Bullet, Walls
 
 class CovidRaid:
-    def __init__(self, preset='Basic', block_size=5, init_enemy_spawn=5,
+    def __init__(self, preset='Basic', block_size=5, init_enemy_spawn=50,
                 init_prop_spawn=150):
 
         # member variables from arg
@@ -17,6 +17,10 @@ class CovidRaid:
 
         # initialize the pygame library
         pg.mixer.pre_init(16000, -16, 5, 640)
+        pg.mixer.init()
+        # play backgraound music
+        pg.mixer.music.load('media/covid/sound/outside.wav')
+        pg.mixer.music.play(-1)
         # pg.mixer.set_num_channels(10)
         pg.init()
 
@@ -38,12 +42,12 @@ class CovidRaid:
         self.enemy_names = ['human-v2']
         self.prop_names = ['house1']      
         self.people_names = ['human1','human2','human3']    
-        self.trees_names = ['trees1','trees2','trees3','trees4','trees5']  
+        self.tree_names = ['trees1','trees2','trees3','trees4','trees5']  
         self.car_names = ['car1','car2','car3','car4','car5']  
         # box collision geometry dimension
         self.cg = {
-            'player': (28,26),
-            'bullet': (24,24),
+            'player': (50,69),
+            'bullet': (23,16),
             'human-v2': (50,69),
             'people': (50,69),
             'prop': (225,225),
@@ -59,7 +63,8 @@ class CovidRaid:
         self.background = ((100, 89, 89))   # screen background color RGB 
 
         # setup player and bullet
-        init_player_pos = [self.settings['width']/2, self.settings['height']-100]
+        init_player_pos = [self.settings['width']/2 - self.cg['player'][0]/2, self.settings['height']-100]
+        init_bullet_pos = [self.settings['width']/2 - self.cg['bullet'][0]/2, init_player_pos[1]]
         bullet_speed_factor = 6
         self.player = Player(scr=self.screen, name=player_name, ent_type='player', 
                         cg=self.cg['player'], pos=init_player_pos, icons=['media/covid/icon/elham.png','media/covid/icon/virus.png'], 
@@ -67,13 +72,13 @@ class CovidRaid:
                         sound_list=['media/covid/sound/walking.wav'])
 
         self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
-                        cg=self.cg['bullet'], pos=init_player_pos, icons=['media/covid/icon/mask.png'], 
+                        cg=self.cg['bullet'], pos=init_bullet_pos, icons=['media/covid/icon/mask.png'], 
                         v_speed=self.settings['player_speed']*bullet_speed_factor, h_speed=0, 
                         player_cg=self.cg['player'], sound_list=['media/covid/sound/bullet.wav']) 
 
         # setup walls 
         self.walls = Walls(scr=self.screen, color=(45,135,10), icons=[], normal=250, extended=100, channel=200, 
-                            max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
+                            max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=1, 
                             v_speed=self.settings['player_speed'], block_size=block_size, symmetric=False)
 
         # initialization
@@ -108,18 +113,18 @@ class CovidRaid:
             vel_h = random.randint(0,1)
             enemy = Enemy(scr=self.screen, name=enemy_name, ent_type='enemy', 
                             cg=self.cg[enemy_name], pos=[pos_h, 0], icons=['media/covid/icon/{}.png'.format(enemy_name)],
-                            v_speed=self.settings['player_speed']*1.5, h_speed=self.settings['enemy_speed']*vel_h)
+                            v_speed=self.settings['player_speed']*1.5, h_speed=self.settings['enemy_speed']*vel_h*0.5)
             self.enemies.append(enemy)
             enemy.set_walls(wall)
 
     def create_trees(self):
-        trees_name = random.choice(self.trees_names) 
+        tree_name = random.choice(self.tree_names) 
 
         # get the wall coordinate at y=0 for spawning 
         wall = self.walls.return_wall_coordinate(0)
 
-        tree = Enemy(scr=self.screen, name=trees_name, ent_type='tree', 
-                        cg=self.cg['tree'], pos=[0, 0], icons=['media/covid/icon/{}.png'.format(trees_name)],
+        tree = Enemy(scr=self.screen, name=tree_name, ent_type='tree', 
+                        cg=self.cg['tree'], pos=[0, 0], icons=['media/covid/icon/{}.png'.format(tree_name)],
                         v_speed=self.settings['player_speed'], h_speed=0)
         self.props.append(tree)
         tree.set_walls(wall)
@@ -131,7 +136,7 @@ class CovidRaid:
         wall = self.walls.return_wall_coordinate(0)
 
         car = Enemy(scr=self.screen, name=car_name, ent_type='car', 
-                        cg=self.cg['car'], pos=[580, 0], icons=['media/covid/icon/{}.png'.format(car_name)],
+                        cg=self.cg['car'], pos=[570, 0], icons=['media/covid/icon/{}.png'.format(car_name)],
                         v_speed=self.settings['player_speed'], h_speed=0)
         self.cars.append(car)
         car.set_walls(wall)
@@ -165,9 +170,10 @@ class CovidRaid:
                     explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
                         cg=self.cg['player'], pos=e.pos, icons=['media/covid/icon/human-v-mask.png'],
                         v_speed=self.settings['player_speed']*1.5, h_speed=0, life_span=1000,
-                        sound_list=['media/covid/sound/explosion.wav'])
+                        sound_list=['media/covid/sound/bullet.wav'])
 
                     self.explosions.append(explosion)
+                    self.score_value += 60
                     if e.name == 'helicopter':
                         self.score_value += 60
                     elif e.name == 'ship':
@@ -195,29 +201,15 @@ class CovidRaid:
         return False
 
     def wall_collision(self):
-        wall_1 = self.walls.return_wall_coordinate(self.player.pos[1])
-        wall_2 = self.walls.return_wall_coordinate(self.player.pos[1]+self.player.cg[1])
-
-        # if the bullet hits the horizontal wall, it will disapear and reload
-        wall_3 = self.walls.return_wall_coordinate(self.bullet.pos[1])
-        if self.bullet.pos[0] < wall_3[0] or self.bullet.pos[0]+self.bullet.cg[0] > wall_3[1]: 
-            self.bullet.reload()
-
-        # if the player hits the wall
-        if (self.player.pos[0] < wall_1[0] or self.player.pos[0]+self.player.cg[0] > wall_1[1] 
-                or self.player.pos[0] < wall_2[0] or self.player.pos[0]+self.player.cg[0] > wall_2[1]):
-
-            self.lives_left -= 1
-            self.player.alive = False
-            explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
-                cg=self.cg['player'], pos=[self.player.pos[0],self.player.pos[1]], 
-                icons=['media/covid/icon/virus.png'], v_speed=self.settings['player_speed'], 
-                h_speed=0, life_span=100, sound_list=['media/covid/sound/explosion.wav']) 
-            
-            self.explosions.append(explosion)
-            return True 
-
-        return False
+        wall = self.walls.return_wall_coordinate(self.player.pos[1])
+        # left wall collision
+        if self.player.pos[0] <= wall[0]:
+            self.player.pos[0] = wall[0]
+        
+        # right wall collision 
+        if self.player.pos[0] + self.player.cg[0] >= wall[1]:
+            self.player.pos[0] = wall[1] - self.player.cg[0]
+        
 
     def show_score(self):
         # render the display
@@ -226,7 +218,7 @@ class CovidRaid:
 
     def show_travel(self):
         # render the display
-        travel = self.font_small.render('Travel: {} km'.format(int(self.travel_distance/1000)), True, (255,255,255))
+        travel = self.font_small.render('Travel: {} m'.format(int(self.travel_distance/100)), True, (255,255,255))
         self.screen.blit(travel, (10, 100))  
 
     def show_lives(self):
@@ -291,7 +283,7 @@ class CovidRaid:
 
         # check for collision between player, enemies, bullet and walls
         enemy_col = self.enemy_collision()
-        wall_col = self.wall_collision()
+        self.wall_collision()
 
         ### ENEMY #################################################
         # update enemy list 
@@ -383,7 +375,7 @@ class CovidRaid:
         self.show_travel()
         pg.display.update()
 
-        if enemy_col or wall_col:
+        if enemy_col:
             if self.lives_left < 1:
                 self.is_running = False
             else:
