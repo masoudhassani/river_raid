@@ -2,13 +2,13 @@ import random
 import pygame as pg
 
 class Walls:
-    def __init__(self, scr, color, icons, normal, extended, channel, 
+    def __init__(self, scr, color, icon_list, normal, extended, channel, 
                     max_island, min_island, spawn_dist, length, randomness, 
                     v_speed, block_size, symmetric=True):
 
         self.screen = scr 
         self.color = color 
-        self.icons = icons 
+        self.icon_list = icon_list
         self.current_speed_v = v_speed  
         self.base_speed_v = v_speed
         self.normal = normal
