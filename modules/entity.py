@@ -46,7 +46,7 @@ class Entity:
         self.pos[1] += self.current_speed_v
 
         # play the explosion sound 
-        if not self.sound_played:
+        if not self.sound_played and self.sounds:
             pg.mixer.Channel(7).play(self.sounds[0])
             # self.sound.play()
             self.sound_played = True
@@ -91,3 +91,7 @@ class Entity:
             return -1 
         else:
             return 0
+
+    def center(self):
+        c = [self.pos[0] + self.cg[0]/2, self.pos[1] + self.cg[1]/2]
+        return c

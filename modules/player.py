@@ -120,7 +120,7 @@ class Player(Entity):
             pg.mixer.Channel(self.channels['fuel-up']).stop()
 
         # fuel down if in vicinity of enemy
-        self.fuel -= self.dec_factor * close_enemies * self.current_speed_v
+        self.fuel -= self.dec_factor * close_enemies * self.current_speed_v*5
         
         # cap the fuel between 0 and self.capacity 
         self.fuel = min(max(0, self.fuel), self.capacity)        

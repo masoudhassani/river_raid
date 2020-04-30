@@ -6,13 +6,13 @@ from modules import InitDeck
 from modules import Entity, Player, Enemy, Bullet, Walls
 
 class CovidRaid:
-    def __init__(self, preset='Basic', block_size=5, init_enemy_spawn=50,
-                init_prop_spawn=150, init_fuel_spawn=300):
+    def __init__(self, preset='Basic', block_size=5, init_enemy_spawn=20, init_people_spawn=20,
+                init_prop_spawn=150, init_fuel_spawn=1000):
 
         # member variables from arg
         self.enemy_spawn_distance = init_enemy_spawn   #  spawn distance in pixel,lower means more enemy is spawned 
         self.prop_spawn_distance = init_prop_spawn
-        self.people_spawn_distance = init_enemy_spawn   #  spawn distance in pixel,lower means more people is spawned 
+        self.people_spawn_distance = init_people_spawn   #  spawn distance in pixel,lower means more people is spawned 
         self.fuel_spawn_distance = init_fuel_spawn
 
         # initialize the pygame library
@@ -39,21 +39,20 @@ class CovidRaid:
 
         # hard coded game settings
         player_name = 'player'
-        self.enemy_names = ['human-v2']
+        self.enemy_names = ['human1','human2','human3','human4','human5','human6','human7','human8','human9','human10']
         self.prop_names = ['house1']      
-        self.people_names = ['human1','human2','human3']    
+        self.people_names = ['human1-mask','human2-mask','human3-mask','human4-mask','human5-mask','human6-mask','human7-mask','human8-mask','human9-mask','human10-mask']    
         self.tree_names = ['trees1','trees2','trees3','trees4','trees5']  
         self.car_names = ['car1','car2','car3','car4','car5']  
         # box collision geometry dimension
         self.cg = {
             'player': (50,69),
             'bullet': (23,16),
-            'human-v2': (50,69),
-            'people': (50,69),
+            'human': (50,69),
             'prop': (225,225),
             'tree':(200,200),
             'car':(160,310),
-            'fuel': (60,100)
+            'fuel': (64,64)
         }
 
         # setup the game display and title
@@ -72,7 +71,7 @@ class CovidRaid:
                         v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed']*2,
                         sound_list=['media/covid/sound/walking.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
                         'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
-                        capacity=2000, dec_factor=1, inc_factor=1, low_fuel=0.2)
+                        capacity=20000, dec_factor=1, inc_factor=6, low_fuel=0.2)
 
         self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
                         cg=self.cg['bullet'], pos=init_bullet_pos, icon_list=['media/covid/icon/mask.png'], 
@@ -80,7 +79,7 @@ class CovidRaid:
                         player_cg=self.cg['player'], sound_list=['media/covid/sound/bullet.wav']) 
 
         # setup walls 
-        self.walls = Walls(scr=self.screen, color=(45,135,10), icon_list=[], normal=250, extended=100, channel=200, 
+        self.walls = Walls(scr=self.screen, color=(45,135,10), icon_list=[], normal=150, extended=100, channel=200, 
                             max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=1, 
                             v_speed=self.settings['player_speed'], block_size=block_size, symmetric=False)
 
@@ -111,25 +110,25 @@ class CovidRaid:
         # get the wall coordinate at y=0 for spawning 
         wall_1 = self.walls.return_wall_coordinate(0)
         # get the wall coordinate at the bottom of CG for spawning 
-        wall_2 = self.walls.return_wall_coordinate(self.cg[enemy_name][1]*3)
+        wall_2 = self.walls.return_wall_coordinate(self.cg['human'][1]*3)
         # select the correct wall size 
         if wall_1[0] >= wall_2[0]:
             wall = wall_1
-            pos_h = random.randint(wall[0],wall[1]-self.cg[enemy_name][0])
+            pos_h = random.randint(wall[0],wall[1]-self.cg['human'][0])
             vel_h = random.randint(0,1)
             enemy = Enemy(scr=self.screen, name=enemy_name, ent_type='enemy', 
-                            cg=self.cg[enemy_name], pos=[pos_h, 0], icon_list=['media/covid/icon/{}.png'.format(enemy_name)],
+                            cg=self.cg['human'], pos=[pos_h, 0], icon_list=['media/covid/icon/{}.png'.format(enemy_name)],
                             v_speed=self.settings['player_speed']*1.5, h_speed=self.settings['enemy_speed']*vel_h*0.5)
             self.enemies.append(enemy)
             enemy.set_walls(wall)
 
     def create_trees(self):
-        tree_name = random.choice(self.tree_names) 
+        tree_name = random.choice(self.tree_names)
 
         # get the wall coordinate at y=0 for spawning 
         wall = self.walls.return_wall_coordinate(0)
 
-        tree = Enemy(scr=self.screen, name=tree_name, ent_type='tree', 
+        tree = Enemy(scr=self.screen, name=tree_name, ent_type='tree',
                         cg=self.cg['tree'], pos=[0, 0], icon_list=['media/covid/icon/{}.png'.format(tree_name)],
                         v_speed=self.settings['player_speed'], h_speed=0)
         self.props.append(tree)
@@ -142,7 +141,7 @@ class CovidRaid:
         wall = self.walls.return_wall_coordinate(0)
 
         car = Enemy(scr=self.screen, name=car_name, ent_type='car', 
-                        cg=self.cg['car'], pos=[570, 0], icon_list=['media/covid/icon/{}.png'.format(car_name)],
+                        cg=self.cg['car'], pos=[670, 0], icon_list=['media/covid/icon/{}.png'.format(car_name)],
                         v_speed=self.settings['player_speed'], h_speed=0)
         self.cars.append(car)
         car.set_walls(wall)
@@ -153,14 +152,14 @@ class CovidRaid:
         # get the wall coordinate at y=0 for spawning 
         wall_1 = self.walls.return_wall_coordinate(0)
         # get the wall coordinate at the bottom of CG for spawning 
-        wall_2 = self.walls.return_wall_coordinate(self.cg['people'][1]*3)
+        wall_2 = self.walls.return_wall_coordinate(self.cg['human'][1]*3)
         # select the correct wall size 
         if wall_1[0] >= wall_2[0]:
             wall = wall_1
-            pos_h = random.randint(wall[0],wall[1]-self.cg['people'][0])
+            pos_h = random.randint(wall[0],wall[1]-self.cg['human'][0])
             vel_h = random.randint(0,1)
             people = Enemy(scr=self.screen, name=people_name, ent_type='people', 
-                            cg=self.cg['people'], pos=[pos_h, 0], icon_list=['media/covid/icon/{}.png'.format(people_name)],
+                            cg=self.cg['human'], pos=[pos_h, 0], icon_list=['media/covid/icon/{}.png'.format(people_name)],
                             v_speed=self.settings['player_speed']*1.5, h_speed=self.settings['enemy_speed']*vel_h*0)
             self.peoples.append(people)
             people.set_walls(wall)
@@ -173,9 +172,9 @@ class CovidRaid:
         # select the correct wall size 
         if wall_1[0] >= wall_2[0]:
             wall = wall_1
-            pos_h = random.randint(wall[0],wall[1]-self.cg['fuel'][0])
+            pos_h = wall[0] # or wall[1]-self.cg['fuel'][0]
             fuel = Enemy(scr=self.screen, name='fuel', ent_type='fuel', 
-                            cg=self.cg['fuel'], pos=[pos_h, 0], icon_list=['media/icon/fuel.png'],
+                            cg=self.cg['fuel'], pos=[pos_h, 0], icon_list=['media/covid/icon/fuel.png'],
                             v_speed=self.settings['player_speed'], h_speed=0)
             self.fuels.append(fuel)
             fuel.set_walls(wall)
@@ -189,9 +188,8 @@ class CovidRaid:
                     self.bullet.reload()
                     e.alive = False
                     explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
-                        cg=self.cg['player'], pos=e.pos, icon_list=['media/covid/icon/human-v-mask.png'],
-                        v_speed=self.settings['player_speed']*1.5, h_speed=0, life_span=1000,
-                        sound_list=['media/covid/sound/bullet.wav'])
+                        cg=self.cg['player'], pos=e.pos, icon_list=['media/covid/icon/{}-mask.png'.format(e.name)],
+                        v_speed=self.settings['player_speed']*1.5, h_speed=0, life_span=1000)
 
                     self.explosions.append(explosion)
                     self.score_value += 60
@@ -232,20 +230,6 @@ class CovidRaid:
             if self.player.pos[1] <= f.pos[1]+f.cg[1] and self.player.pos[1]+self.player.cg[1] >= f.pos[1]:
                 if self.player.pos[0] < f.pos[0]+f.cg[0] and self.player.pos[0]+self.player.cg[0]> f.pos[0]:
                     collision = True 
-
-            # if the bullet hits the fuel tank
-            if self.bullet.state == 'fired':
-                if self.bullet.pos[1] <= f.pos[1]+f.cg[1] and self.bullet.pos[1]+self.bullet.cg[1] >= f.pos[1]:
-                    if self.bullet.pos[0] < f.pos[0]+f.cg[0] and self.bullet.pos[0]+self.bullet.cg[0]> f.pos[0]:
-                        self.bullet.reload()
-                        f.alive = False
-                        explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
-                            cg=self.cg['player'], pos=f.pos, icon_list=['media/icon/explosion2.png'],
-                            v_speed=self.settings['player_speed'], h_speed=0, life_span=100,
-                            sound_list=['media/sound/explosion.wav'])
-
-                        self.explosions.append(explosion) 
-                        self.score_value += 80
    
         
         return collision
@@ -356,7 +340,7 @@ class CovidRaid:
 
         if (self.travel_distance-self.last_people_spawn) > self.randomizer:
             self.last_people_spawn = self.travel_distance
-            self.randomizer = random.randint(self.people_spawn_distance*0.5, self.people_spawn_distance*1.5)
+            self.randomizer = random.randint(self.people_spawn_distance*0.5, self.people_spawn_distance*0.8)
             self.create_people()
         ############################################################
 
@@ -394,7 +378,7 @@ class CovidRaid:
 
         if (self.travel_distance-self.last_fuel_spawn) > self.fuel_randomizer:
             self.last_fuel_spawn = self.travel_distance
-            self.fuel_randomizer = random.randint(self.fuel_spawn_distance*0.3, self.fuel_spawn_distance*1.5)
+            self.fuel_randomizer = random.randint(self.fuel_spawn_distance*0.6, self.fuel_spawn_distance*1.5)
             self.create_fuels()
 
         # player is dead if fuel is zero 
@@ -425,9 +409,17 @@ class CovidRaid:
         for f in self.fuels:
             f.update(keys) 
 
+        close_enemies = 0
+        for e in self.enemies+self.explosions+self.peoples:
+            p = self.player.center()
+            d = ((e.center()[0]-p[0])**2 + (e.center()[1]-p[1])**2)**0.5
+            if d < 200:
+                close_enemies += 1
+
+
         # update player position
         self.player.set_walls(self.walls.return_wall_coordinate(self.player.pos[1]))
-        self.travel_distance = self.player.update(keys, self.fuel_collision()) 
+        self.travel_distance = self.player.update(keys, self.fuel_collision(), close_enemies) 
         
         # update bullet 
         self.bullet.update(keys, self.player.pos) 

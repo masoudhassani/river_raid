@@ -22,7 +22,8 @@ class Bullet(Entity):
         self.check_state()
 
         # draw
-        self.screen.blit(self.icons[0], self.pos)
+        if self.state == 'fired':
+            self.screen.blit(self.icons[0], self.pos)
 
     def fire(self):
         # play the explosion sound 
