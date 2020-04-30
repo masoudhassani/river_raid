@@ -22,12 +22,13 @@ class Bullet(Entity):
         self.check_state()
 
         # draw
-        self.screen.blit(self.icons[0], self.pos)
+        if self.state == 'fired':
+            self.screen.blit(self.icons[0], self.pos)
 
     def fire(self):
         # play the explosion sound 
         if not self.sound_played:
-            pg.mixer.Channel(2).play(self.sound)
+            pg.mixer.Channel(6).play(self.sounds[0])
             # self.sound.play()
             self.sound_played = True
 
