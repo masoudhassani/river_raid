@@ -30,31 +30,57 @@ class Walls:
         self.channel_length = self.block_size*50
         self.channel_visible = False
         self.channel_passed = False
-        # self.wall_length = self.init_wall_length()
+        self.wall_length = self.init_wall_length()
         self.walls = ()
 
-    def update(self, keys):
-        # handle speed
-        if keys[pg.K_UP]:
-            self.speed_up()
-        elif keys[pg.K_DOWN]:
-            self.slow_down()
-        else:
-            self.current_speed_v = self.base_speed_v
-
-        self.create_wall()
-        self.update_odometer()
+    def update(self, action, ai):
+        # if ai agent is playing 
+        if ai:
+            if action == 'UP':
+                self.speed_up()
+            elif action == 'DOWN':
+                self.slow_down()
+            else:
+                self.current_speed_v = self.base_speed_v
         
-        # return self.walls
+        # if human is playing 
+        else:
+            # handle speed
+            if 'UP' in action:
+                self.speed_up()
+            elif 'DOWN' in action:
+                self.slow_down()
+            else:
+                self.current_speed_v = self.base_speed_v
 
-    def create_wall(self):
+        self.update_odometer()
+        self.wall_logic()
+
+    # wall logic for symmetric walls with channels and extensions 
+    def wall_logic(self):
         if self.symmetric:
-            
             if self.travel_per_wall == 0:
                 self.wall_length = self.init_wall_length() 
 
             if self.travel_per_wall < self.wall_length - self.channel_length:
                 self.channel_passed = True
+                if not self.channel_visible:
+                    pass
+                else:
+                    if self.travel_per_wall >= self.screen_height-self.block_size:
+                        self.channel_visible = False
+
+            else:
+                self.channel_passed = False
+                self.channel_visible = True
+                if self.travel_per_wall >= self.wall_length:
+                    self.travel_per_wall = 0           
+
+    def render(self):
+        # symmetric walls with channels and extensions 
+        if self.symmetric:
+
+            if self.travel_per_wall < self.wall_length - self.channel_length:
                 if not self.channel_visible:
                     pg.draw.rect(self.screen, self.color, [0, 0, self.normal, self.screen_height])
                     pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, 0, self.normal, self.screen_height])
@@ -68,20 +94,15 @@ class Walls:
                                                             self.screen_height-(self.travel_per_wall+self.channel_length)])
                     pg.draw.rect(self.screen, self.color, [0, 0, self.normal, self.travel_per_wall])
                     pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, 0, self.normal, self.travel_per_wall])   
-                    if self.travel_per_wall >= self.screen_height-self.block_size:
-                        self.channel_visible = False
 
             else:
-                self.channel_passed = False
-                self.channel_visible = True
                 pos = self.travel_per_wall - (self.wall_length - self.channel_length)
                 pg.draw.rect(self.screen, self.color, [0, 0, self.channel, pos])
                 pg.draw.rect(self.screen, self.color, [self.screen_width-self.channel, 0, self.channel, pos])            
                 pg.draw.rect(self.screen, self.color, [0, pos, self.normal, self.screen_height-pos])
                 pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, pos, self.normal, self.screen_height-pos])     
 
-                if self.travel_per_wall >= self.wall_length:
-                    self.travel_per_wall = 0   
+        # simple wall without symmetry 
         else:
             pg.draw.rect(self.screen, self.color, [0, 0, self.channel, self.screen_height])
             pg.draw.rect(self.screen, [62,57,57], [self.screen_width-self.normal, 0, self.normal, self.screen_height])

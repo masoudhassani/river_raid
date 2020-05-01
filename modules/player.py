@@ -23,27 +23,46 @@ class Player(Entity):
                         }
         
 
-    def update(self, keys, fuel_col=False, close_enemies=0): 
-        # handle movements
-        if keys[pg.K_LEFT]:
-            self.move_left()
-        elif keys[pg.K_RIGHT]:
-            self.move_right()
+    def update(self, action, ai, fuel_col=False, close_enemies=0): 
+        # if ai agent is playing
+        if ai:
+            # handle movements
+            if 'LEFT' in action:
+                self.move_left()
+            elif 'RIGHT' in action:
+                self.move_right()
 
-        # handle speed
-        if keys[pg.K_UP]:
-            self.speed_up()
-        elif keys[pg.K_DOWN]:
-            self.slow_down()
+            # handle speed
+            if 'UP' in action:
+                self.speed_up()
+            elif 'DOWN' in action:
+                self.slow_down()
+            else:
+                self.current_speed_h = self.base_speed_h * self.sign(self.current_speed_h)
+                self.current_speed_v = self.base_speed_v
+
+        # if human is playing
         else:
-            self.current_speed_h = self.base_speed_h
-            self.current_speed_v = self.base_speed_v
+            # handle movements
+            if 'LEFT' in action:
+                self.move_left()
+            elif 'RIGHT' in action:
+                self.move_right()
+
+            # handle speed
+            if 'UP' in action:
+                self.speed_up()
+            elif 'DOWN' in action:
+                self.slow_down()
+            else:
+                self.current_speed_h = self.base_speed_h
+                self.current_speed_v = self.base_speed_v
         
         # no passing from boundaries 
         # self.check_walls()
 
         # check player life
-        icon = self.check_life()
+        self.current_icon = self.check_life()
 
         # update travel distance 
         self.update_odometer()
@@ -53,9 +72,6 @@ class Player(Entity):
 
         # check the remaining fuel 
         self.check_fuel(fuel_col, close_enemies)
-
-        # draw
-        self.screen.blit(icon, self.pos)
 
         return self.travel_total
 
