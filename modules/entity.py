@@ -35,25 +35,15 @@ class Entity:
             self.icons.append(pg.image.load(i))   
         self.current_icon = self.icons[0]
 
-    def update(self, action, ai, events=[]):
-        # if ai agent is playing 
-        if ai:
-            if action == 'UP':
-                self.speed_up()
-            elif action == 'DOWN':
-                self.slow_down()
-            else:
-                self.current_speed_v = self.base_speed_v
-        
-        # if human is playing 
+    def update(self, action, events=[]):
+
+        # handle speed
+        if 'UP' in action:
+            self.speed_up()
+        elif 'DOWN' in action:
+            self.slow_down()
         else:
-            # handle speed
-            if 'UP' in action:
-                self.speed_up()
-            elif 'DOWN' in action:
-                self.slow_down()
-            else:
-                self.current_speed_v = self.base_speed_v
+            self.current_speed_v = self.base_speed_v
         
         self.pos[1] += self.current_speed_v
 

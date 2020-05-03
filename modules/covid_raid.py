@@ -382,7 +382,7 @@ class CovidRaid:
         ############################################################  
 
         ### COLLISIONS #################################################
-        self.walls.update(action, self.ai_agent)
+        self.walls.update(action)
         self.enemy_collision()
         self.wall_collision()
         ############################################################ 
@@ -417,19 +417,19 @@ class CovidRaid:
 
         ### UPDATE #################################################
         for p in self.trees:
-            p.update(action, self.ai_agent)
+            p.update(action)
 
         for c in self.cars:
-            c.update(action, self.ai_agent) 
+            c.update(action) 
 
         for e in self.enemies: 
-            e.update(action, self.ai_agent)   
+            e.update(action)   
 
         for p in self.peoples: 
-            p.update(action, self.ai_agent)   
+            p.update(action)   
 
         for f in self.fuels:
-            f.update(action, self.ai_agent) 
+            f.update(action) 
 
         close_enemies = 0
         for e in self.enemies+self.explosions+self.peoples:
@@ -440,10 +440,10 @@ class CovidRaid:
 
         # update player position
         self.player.set_walls(self.walls.return_wall_coordinate(self.player.pos[1]))
-        self.travel_distance = self.player.update(action, self.ai_agent, self.fuel_collision(), close_enemies) 
+        self.travel_distance = self.player.update(action, self.fuel_collision(), close_enemies) 
         
         # update bullet 
-        self.bullet.update(action, self.ai_agent, self.player.pos)        
+        self.bullet.update(action, self.player.pos)        
 
         self.explosions = [x for x in self.explosions if x.is_active()]
         # remove enemies that are dead or out of screen

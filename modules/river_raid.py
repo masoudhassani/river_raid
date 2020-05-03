@@ -374,7 +374,7 @@ class RiverRaid:
         ############################################################ 
 
         ### COLLISIONS #################################################
-        self.walls.update(action, self.ai_agent)
+        self.walls.update(action)
         self.enemy_collision()
         self.wall_collision()
         ############################################################ 
@@ -403,25 +403,25 @@ class RiverRaid:
 
         ### UPDATE ################################################# 
         for p in self.props:
-            p.update(action, self.ai_agent)
+            p.update(action)
 
         for f in self.fuels:
-            f.update(action, self.ai_agent) 
+            f.update(action) 
 
         for e in self.enemies: 
-            e.update(action, self.ai_agent)   
+            e.update(action)   
 
         # update bullet 
-        self.bullet.update(action, self.ai_agent, self.player.pos)      
+        self.bullet.update(action, self.player.pos)      
 
         # update player 
         self.player.set_walls(self.walls.return_wall_coordinate(self.player.pos[1]))
-        self.travel_distance = self.player.update(action, self.ai_agent, self.fuel_collision()) 
+        self.travel_distance = self.player.update(action, self.fuel_collision()) 
 
         # update explosions
         self.explosions = [x for x in self.explosions if x.is_active()]
         for e in self.explosions:
-            e.update(action, self.ai_agent) 
+            e.update(action) 
             if not e.is_active():
                 del e   
         ############################################################ 

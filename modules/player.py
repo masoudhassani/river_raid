@@ -23,40 +23,22 @@ class Player(Entity):
                         }
         
 
-    def update(self, action, ai, fuel_col=False, close_enemies=0): 
-        # if ai agent is playing
-        if ai:
-            # handle movements
-            if 'LEFT' in action:
-                self.move_left()
-            elif 'RIGHT' in action:
-                self.move_right()
+    def update(self, action, fuel_col=False, close_enemies=0): 
 
-            # handle speed
-            if 'UP' in action:
-                self.speed_up()
-            elif 'DOWN' in action:
-                self.slow_down()
-            else:
-                self.current_speed_h = self.base_speed_h * self.sign(self.current_speed_h)
-                self.current_speed_v = self.base_speed_v
+        # handle movements
+        if 'LEFT' in action:
+            self.move_left()
+        elif 'RIGHT' in action:
+            self.move_right()
 
-        # if human is playing
+        # handle speed
+        if 'UP' in action:
+            self.speed_up()
+        elif 'DOWN' in action:
+            self.slow_down()
         else:
-            # handle movements
-            if 'LEFT' in action:
-                self.move_left()
-            elif 'RIGHT' in action:
-                self.move_right()
-
-            # handle speed
-            if 'UP' in action:
-                self.speed_up()
-            elif 'DOWN' in action:
-                self.slow_down()
-            else:
-                self.current_speed_h = self.base_speed_h
-                self.current_speed_v = self.base_speed_v
+            self.current_speed_h = self.base_speed_h
+            self.current_speed_v = self.base_speed_v
         
         # no passing from boundaries 
         # self.check_walls()

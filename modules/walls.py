@@ -33,25 +33,14 @@ class Walls:
         self.wall_length = self.init_wall_length()
         self.walls = ()
 
-    def update(self, action, ai):
-        # if ai agent is playing 
-        if ai:
-            if action == 'UP':
-                self.speed_up()
-            elif action == 'DOWN':
-                self.slow_down()
-            else:
-                self.current_speed_v = self.base_speed_v
-        
-        # if human is playing 
+    def update(self, action):
+        # handle speed
+        if 'UP' in action:
+            self.speed_up()
+        elif 'DOWN' in action:
+            self.slow_down()
         else:
-            # handle speed
-            if 'UP' in action:
-                self.speed_up()
-            elif 'DOWN' in action:
-                self.slow_down()
-            else:
-                self.current_speed_v = self.base_speed_v
+            self.current_speed_v = self.base_speed_v
 
         self.update_odometer()
         self.wall_logic()

@@ -4,7 +4,7 @@ from pygame import mixer
 
 class Bullet(Entity):
 
-    def update(self, action, ai, player_pos): 
+    def update(self, action, player_pos): 
         # handle movements
         if self.state == 'fired':
             self.fire()
@@ -12,14 +12,8 @@ class Bullet(Entity):
             self.pos = [player_pos[0]+self.player_cg[0]/2-self.cg[0]/2, player_pos[1]+4]
 
         # check if bullet is fired
-        # if ai is playing
-        if ai:
-            if 'SHOOT' in action and self.state == 'ready':
-                self.state = 'fired'
-        # if human is playing 
-        else:
-            if 'SHOOT' in action and self.state == 'ready':
-                self.state = 'fired'
+        if 'SHOOT' in action and self.state == 'ready':
+            self.state = 'fired'
 
         # check collision with boundaries 
         self.check_walls()

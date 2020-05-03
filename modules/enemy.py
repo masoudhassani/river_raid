@@ -3,27 +3,16 @@ import pygame as pg
 
 class Enemy(Entity):
 
-    def update(self, action, ai): 
-        # if ai agent is playing 
-        if ai:
-            if action == 'UP':
-                self.speed_up()
-            elif action == 'DOWN':
-                self.slow_down()
-            else:
-                self.current_speed_h = self.base_speed_h * self.sign(self.current_speed_h)
-                self.current_speed_v = self.base_speed_v
+    def update(self, action): 
         
-        # if human is playing 
+        # handle speed
+        if 'UP' in action:
+            self.speed_up()
+        elif 'DOWN' in action:
+            self.slow_down()
         else:
-            # handle speed
-            if 'UP' in action:
-                self.speed_up()
-            elif 'DOWN' in action:
-                self.slow_down()
-            else:
-                self.current_speed_h = self.base_speed_h * self.sign(self.current_speed_h)
-                self.current_speed_v = self.base_speed_v        
+            self.current_speed_h = self.base_speed_h * self.sign(self.current_speed_h)
+            self.current_speed_v = self.base_speed_v        
 
         # handle movements
         self.move()
