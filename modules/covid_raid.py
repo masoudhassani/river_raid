@@ -27,7 +27,7 @@ class CovidRaid:
 
         # initialize clock
         self.clock = pg.time.Clock()
-        self.FPS = 60
+        self.FPS = 30
 
         # initialize the score and its font
         self.score_value = 0
@@ -72,7 +72,7 @@ class CovidRaid:
                         v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed'],
                         sound_list=['media/covid/sound/walking.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
                         'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
-                        capacity=20000, dec_factor=1, inc_factor=6, low_fuel=0.2)
+                        capacity=20000, dec_factor=1, inc_factor=100, low_fuel=0.2)
 
         self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
                         cg=self.cg['bullet'], pos=init_bullet_pos, icon_list=['media/covid/icon/mask.png'], 
@@ -104,6 +104,7 @@ class CovidRaid:
         self.restart = False
         self.game_paused = False
         self.cars = []
+        self.start_intro = True
 
         # initialization for ai agent 
         self.action_space = ActionSpace()
@@ -331,6 +332,23 @@ class CovidRaid:
             if timer > delay:
                 paused = False
 
+    def splash_screen(self):
+        intro_image = pg.image.load('media/covid/icon/intro.png')
+        self.screen.blit(intro_image, (0,0))
+        pg.display.update()
+        timer = 0
+        t0 = int(time.time()*1000.0)
+        intro = True
+        while intro:
+            events = pg.event.get()
+            for event in events:
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    quit()
+            timer = int(time.time()*1000.0) - t0
+            if timer > 5000:
+                intro = False
+
     def pause_game(self):
         paused = True
         while paused:
@@ -491,6 +509,11 @@ class CovidRaid:
     render the game environment on screen
     '''
     def render(self):
+        # show intro 
+        if self.start_intro:
+            self.splash_screen()
+            self.start_intro = False
+
         # setup screen color
         self.screen.fill(self.background)
 
@@ -521,3 +544,5 @@ class CovidRaid:
 
         # render all objects
         pg.display.update()
+
+        

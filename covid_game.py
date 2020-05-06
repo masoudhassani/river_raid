@@ -6,6 +6,7 @@ env = CovidRaid(preset='Basic', ai_agent=False, init_enemy_spawn=300, init_peopl
 
 is_running = True 
 while is_running:
-    is_running = env.step(env.action_space.sample())
     env.render()
+    is_running = env.step(env.action_space.sample())
+    
     # time.sleep(0.1)
