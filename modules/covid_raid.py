@@ -230,7 +230,7 @@ class CovidRaid:
             # select the correct wall size 
             if wall_1[0] >= wall_2[0]:
                 wall = wall_1
-                pos_h = wall[0] # or wall[1]-self.cg['fuel'][0]
+                pos_h = random.randint(wall[0],wall[1]-self.cg['fuel'][0]) #wall[0] # or wall[1]-self.cg['fuel'][0]
                 fuel = Enemy(scr=self.screen, name='fuel', ent_type='fuel', 
                                 cg=self.cg['fuel'], pos=[pos_h, 0], icon_list=['media/covid/icon/fuel.png'],
                                 v_speed=self.settings['player_speed'], h_speed=0)
