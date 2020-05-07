@@ -9,6 +9,7 @@ agent = Agent()
 is_running = True 
 while is_running:
     action = agent.take_action(env)
-    is_running = env.step(action)
-    env.render()
+    is_running, _ = env.step(action)
+    env.discrete_render()
+    # env.render()
     # time.sleep(0.1)

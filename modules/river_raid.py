@@ -5,6 +5,8 @@ import time
 import numpy as np
 from modules import InitDeck
 from modules import Entity, Player, Enemy, Bullet, Walls, ActionSpace
+import matplotlib.pyplot as plt 
+from matplotlib import colors
 
 class RiverRaid:
     def __init__(self, preset='Basic', ai_agent=False, init_enemy_spawn=150,
@@ -27,7 +29,6 @@ class RiverRaid:
         self.FPS = 30
 
         # initialize the score and its font
-        self.score_value = 0
         self.font_small = pg.font.Font('freesansbold.ttf', 16)
         self.font_large = pg.font.Font('freesansbold.ttf', 48)
 
@@ -76,27 +77,24 @@ class RiverRaid:
                             max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
                             v_speed=self.settings['player_speed'], block_size=self.settings['player_speed'])
 
-        # initialization
-        self.enemy_randomizer = 200
-        self.prop_randomizer = 200
-        self.fuel_randomizer = 200
-        self.enemies = []
-        self.props = []
-        self.explosions = []
-        self.fuels = []
-        self.is_running = True
-        self.travel_distance = 0
-        self.last_enemey_spawn = 0
-        self.last_prop_spawn = 0 
-        self.last_fuel_spawn = 0      
-        self.lives_left = self.settings['num_lives']
-        self.restart = False
-        self.game_paused = False
-        self.env()
+        # initialization of the environment
+        self.reset()
 
-        # initialization for ai agent 
+        #### AGENT ###############################################
         self.action_space = ActionSpace()
-
+        # initialization of the environment descritization
+        self.crop = 200     # total number of pixels cropped from left and right of screen to reduce the state size
+        self.block_size = self.settings['player_speed']
+        self.cmap = colors.ListedColormap(['blue','yellow','red','pink','green'])   # color map for visualization
+        plt.ion()
+        plt.gca().invert_yaxis()
+        frame1 = plt.gca()
+        frame1.axes.xaxis.set_ticklabels([])
+        frame1.axes.yaxis.set_ticklabels([])        
+        ##########################################################
+    '''
+    creates enemies randomly with a random horizontal position
+    '''
     def create_enemies(self):
         # update enemy list 
         self.enemies = [x for x in self.enemies if x.is_active()]
@@ -126,6 +124,11 @@ class RiverRaid:
                 self.enemies.append(enemy)
                 enemy.set_walls(wall)
 
+    '''
+    create props randomly and in random horizontal position
+    player cannot interact with props since they are positioned 
+    outside of boundaries
+    '''
     def create_props(self):
         # update prop list 
         self.props = [x for x in self.props if x.is_active()]
@@ -157,6 +160,9 @@ class RiverRaid:
             self.props.append(prop)
             prop.set_walls(wall)
 
+    '''
+    create fuel pumps randomly and on a random horizontal position
+    '''
     def create_fuels(self):
         # update fuel list 
         self.fuels = [x for x in self.fuels if x.is_active()]
@@ -184,6 +190,9 @@ class RiverRaid:
                 self.fuels.append(fuel)
                 fuel.set_walls(wall)
 
+    '''
+    collision detection between enemies and player/bullet
+    '''
     def enemy_collision(self):        
         for e in self.enemies:
             # if the bullet hits the enemy
@@ -219,6 +228,9 @@ class RiverRaid:
                     elif e.name == 'ship':
                         self.score_value += 40
 
+    '''
+    collision detection between player and walls
+    '''
     def wall_collision(self):
         wall_1 = self.walls.return_wall_coordinate(self.player.pos[1])
         wall_2 = self.walls.return_wall_coordinate(self.player.pos[1]+self.player.cg[1])
@@ -241,6 +253,10 @@ class RiverRaid:
             
             self.explosions.append(explosion)
 
+    '''
+    detect if player is passing over a fuel pump
+    or a bullet has hit the pump
+    '''
     def fuel_collision(self):
         collision = False
         for f in self.fuels:
@@ -263,36 +279,51 @@ class RiverRaid:
                         self.explosions.append(explosion) 
                         self.score_value += 80
    
-        
         return collision
 
+    '''
+    show current score on the screen
+    '''
     def show_score(self):
         # render the display
         score = self.font_small.render('Score: {}'.format(self.score_value), True, (255,255,255))
         self.screen.blit(score, (10, 20))  
 
+    '''
+    show current travel distance on the screen
+    '''
     def show_travel(self):
         # render the display
         travel = self.font_small.render('Travel: {} km'.format(int(self.travel_distance/1000)), True, (255,255,255))
         self.screen.blit(travel, (10, 80))  
 
+    '''
+    show remaining number of lives on the screen
+    '''
     def show_lives(self):
         # render the display
         lives = self.font_small.render('Lives: {}'.format(int(self.lives_left)), True, (255,255,255))
         self.screen.blit(lives, (10, 40)) 
 
+    '''
+    show remaining fuel on the screen
+    '''
     def show_fuel(self):
         # render the display
         fuel = self.font_small.render('Fuel: {} %'.
                 format(int(self.player.fuel*100/self.player.capacity)), True, (255,255,255))
         self.screen.blit(fuel, (10, 60)) 
 
+    '''
+    genereic function to show a string with a large font on the screen
+    '''
     def show_on_screen(self, val, x, y, color=(255,255,255)):
         render = self.font_large.render(str(val), True, color)
         self.screen.blit(render, (x, y))         
 
     '''
     restart the game after dying 
+    this is used when human is playing
     '''
     def restart_game(self, delay):
         paused = True
@@ -309,6 +340,9 @@ class RiverRaid:
             if timer > delay:
                 paused = False
 
+    '''
+    pause game after pressing p
+    '''
     def pause_game(self):
         paused = True
         while paused:
@@ -325,22 +359,8 @@ class RiverRaid:
                         paused = False
 
     '''
-    function to return game environment and actions 
-    '''
-    def env(self):
-        block_size = self.settings['player_speed']
-        w = int(self.settings['width'])
-        h = int(self.settings['height'])
-        wall_arr = np.zeros([int(w/block_size), int(h/block_size)])
-        reward = self.score_value
-        reward += 1      
-
-        if not self.player.alive:
-            penalty = -1000
-
-
-    '''
-    main class method
+    update the environment an state based on the agen action
+    this is the main method that should be called every step
     '''
     def step(self, action):
         self.clock.tick(self.FPS)
@@ -370,6 +390,10 @@ class RiverRaid:
                 self.pause_game()
         
         else:
+            events = pg.event.get()
+            for event in events:
+                if event.type == pg.QUIT:
+                    self.is_running = False  
             self.action_space.available_actions(condition=self.bullet.state == 'fired')
         ############################################################ 
 
@@ -433,10 +457,15 @@ class RiverRaid:
             self.restart = True
         ############################################################ 
 
-        return self.is_running
+        ### UPDATE STATE ###########################################
+        self.update_state()
+        ############################################################
+
+        return self.is_running, self.state
 
     '''
     reset all game metrics and variable 
+    this is also called when the environment is initialized
     '''
     def reset(self):
         self.enemy_randomizer = 200
@@ -458,6 +487,8 @@ class RiverRaid:
 
     '''
     render the game environment on screen
+    this should not be called in every iteration in AI mode since it 
+    slows down the trining process significantly
     '''
     def render(self):
         # setup screen color
@@ -491,5 +522,76 @@ class RiverRaid:
         # render all objects
         pg.display.update()
 
+    '''
+    return the game state
+    to reduce the action/state space size, we discretize 
+    using the block size. block size is the increment is the player,
+    enemy and other props position in every time step
+    with the current FPS, block size is equal to the player speed.
 
+    we consider 5 different status for each block which represent:
+    empty -> 0
+    player -> 1
+    enemy -> 2
+    fuel -> 3
+    wall -> 4
+    we crop pixles from the right and left of the screen where player cannot go
+    For a 600x600 screen and speed of 4 the state space dimension is  
+    150x150x5
+    '''
+    def update_state(self):
+        #### INIT #####################################
+        self.state = np.zeros([int((self.settings['width']-self.crop)/self.block_size), 
+                        int(self.settings['height']/self.block_size)])
+        ###############################################
+
+        #### PLAYER ###################################
+        self.fill_state_array(self.player, 1)
+        ###############################################
+
+        #### FUEL #####################################
+        for f in self.fuels:
+            self.fill_state_array(f, 3)
+        ############################################### 
+
+        #### ENEMY ###################################
+        for e in self.enemies:
+            self.fill_state_array(e, 2)
+        ###############################################          
+
+        #### WALL #####################################
+        for i in range(int(self.settings['height']/self.block_size)):
+            wall = self.walls.return_wall_coordinate(i*self.block_size)
+            for j in range(int((wall[0]-self.crop/2)/self.block_size)):
+                self.state[j][i] = 4
+            for j in range(int((wall[1]-self.crop/2)/self.block_size), 
+                            int((self.settings['width']-self.crop)/self.block_size)):
+                self.state[j][i] = 4
+        ############################################### 
         
+    '''
+    fill self.state with values assigned to each asset
+    '''
+    def fill_state_array(self, instance, value):  
+        # find the origin position in the discretized space
+        pos = [int((instance.pos[0]-self.crop/2)/self.block_size),
+               int((instance.pos[1])/self.block_size)]
+        # find the size of cg box in the discretized space
+        width = int(instance.cg[0]/self.block_size)
+        height = int(instance.cg[1]/self.block_size)
+
+        # assign instance value to the state subset
+        # take care of assets which are leaving the screen
+        for i in range(width+1):
+            for j in range(height+1):
+                self.state[pos[0]+i][min(pos[1]+j, 
+                            int(self.settings['height']/self.block_size)-1)] = value
+    
+    '''
+    render the discrete map with assets
+    NOTE: very slow!
+    '''
+    def discrete_render(self):
+        plt.imshow(np.transpose(self.state), cmap=self.cmap)
+        plt.draw() 
+        plt.pause(0.001)
