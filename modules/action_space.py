@@ -4,6 +4,7 @@ import pygame as pg
 class ActionSpace:
     def __init__(self):
         self.available_actions(False)
+        self.n = len(self.actions)
 
     '''
     create a list of available actions based on a condition
@@ -42,5 +43,5 @@ class ActionSpace:
 
         return action_list
 
-
-
+    def __str__(self):
+        return ('Discrete ({})'.format(self.n))

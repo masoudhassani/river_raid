@@ -4,7 +4,7 @@ import random
 import time
 import numpy as np
 from modules import InitDeck
-from modules import Entity, Player, Enemy, Bullet, Walls, ActionSpace
+from modules import Entity, Player, Enemy, Bullet, Walls, ActionSpace, ObservationSpace, Agent
 import matplotlib.pyplot as plt 
 from matplotlib import colors
 
@@ -77,14 +77,29 @@ class RiverRaid:
                             max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
                             v_speed=self.settings['player_speed'], block_size=self.settings['player_speed'])
 
-        # initialization of the environment
-        self.reset()
 
-        #### AGENT ###############################################
+        #### ACTION SPACE ########################################
         self.action_space = ActionSpace()
-        # initialization of the environment descritization
-        self.crop = 200     # total number of pixels cropped from left and right of screen to reduce the state size
-        self.block_size = self.settings['player_speed']
+        ##########################################################
+
+        #### STATE SPACE #########################################
+        # state discretization parameters
+        block_size = self.settings['player_speed']
+        crop_h = 200
+        crop_v = 0
+        
+        # entity-encoding lists
+        wall_encoding = [self.walls, 4]
+        player_encoding =[self.player, 1]
+
+        # initialize the state space
+        self.observation_space = ObservationSpace(w=self.settings['width'], 
+                                                  h=self.settings['height'],
+                                                  player=player_encoding,
+                                                  wall=wall_encoding, block_size=block_size,
+                                                  crop_h=crop_h, crop_v=crop_v)
+
+        # initialization of discrete state space plotting 
         self.cmap = colors.ListedColormap(['blue','yellow','red','pink','green'])   # color map for visualization
         plt.ion()
         plt.gca().invert_yaxis()
@@ -92,6 +107,16 @@ class RiverRaid:
         frame1.axes.xaxis.set_ticklabels([])
         frame1.axes.yaxis.set_ticklabels([])        
         ##########################################################
+
+        #### AGENT ###############################################
+        self.agent = Agent()
+        ##########################################################        
+
+        #### RESET ###############################################
+        self.reset()
+        ########################################################## 
+        
+
     '''
     creates enemies randomly with a random horizontal position
     '''
@@ -458,7 +483,9 @@ class RiverRaid:
         ############################################################ 
 
         ### UPDATE STATE ###########################################
-        self.update_state()
+        entity_encoding =[[self.enemies, 2],
+                          [self.fuels, 3]]
+        self.state = self.observation_space.update(entity_encoding) 
         ############################################################
 
         return self.is_running, self.state
@@ -483,7 +510,8 @@ class RiverRaid:
         self.lives_left = self.settings['num_lives']
         self.restart = False
         self.game_paused = False 
-        self.score_value = 0       
+        self.score_value = 0   
+        self.observation_space.reset()    
 
     '''
     render the game environment on screen
@@ -522,71 +550,6 @@ class RiverRaid:
         # render all objects
         pg.display.update()
 
-    '''
-    return the game state
-    to reduce the action/state space size, we discretize 
-    using the block size. block size is the increment is the player,
-    enemy and other props position in every time step
-    with the current FPS, block size is equal to the player speed.
-
-    we consider 5 different status for each block which represent:
-    empty -> 0
-    player -> 1
-    enemy -> 2
-    fuel -> 3
-    wall -> 4
-    we crop pixles from the right and left of the screen where player cannot go
-    For a 600x600 screen and speed of 4 the state space dimension is  
-    150x150x5
-    '''
-    def update_state(self):
-        #### INIT #####################################
-        self.state = np.zeros([int((self.settings['width']-self.crop)/self.block_size), 
-                        int(self.settings['height']/self.block_size)])
-        ###############################################
-
-        #### PLAYER ###################################
-        self.fill_state_array(self.player, 1)
-        ###############################################
-
-        #### FUEL #####################################
-        for f in self.fuels:
-            self.fill_state_array(f, 3)
-        ############################################### 
-
-        #### ENEMY ###################################
-        for e in self.enemies:
-            self.fill_state_array(e, 2)
-        ###############################################          
-
-        #### WALL #####################################
-        for i in range(int(self.settings['height']/self.block_size)):
-            wall = self.walls.return_wall_coordinate(i*self.block_size)
-            for j in range(int((wall[0]-self.crop/2)/self.block_size)):
-                self.state[j][i] = 4
-            for j in range(int((wall[1]-self.crop/2)/self.block_size), 
-                            int((self.settings['width']-self.crop)/self.block_size)):
-                self.state[j][i] = 4
-        ############################################### 
-        
-    '''
-    fill self.state with values assigned to each asset
-    '''
-    def fill_state_array(self, instance, value):  
-        # find the origin position in the discretized space
-        pos = [int((instance.pos[0]-self.crop/2)/self.block_size),
-               int((instance.pos[1])/self.block_size)]
-        # find the size of cg box in the discretized space
-        width = int(instance.cg[0]/self.block_size)
-        height = int(instance.cg[1]/self.block_size)
-
-        # assign instance value to the state subset
-        # take care of assets which are leaving the screen
-        for i in range(width+1):
-            for j in range(height+1):
-                self.state[pos[0]+i][min(pos[1]+j, 
-                            int(self.settings['height']/self.block_size)-1)] = value
-    
     '''
     render the discrete map with assets
     NOTE: very slow!
