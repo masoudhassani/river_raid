@@ -18,10 +18,13 @@ class RiverRaid:
         self.fuel_spawn_distance = init_fuel_spawn
         self.ai_agent = ai_agent
 
-        # initialize the pygame library
+        #### SOUND ##############################################
         pg.mixer.pre_init(16000, -16, 2, 512)
         pg.mixer.init()
         pg.mixer.set_num_channels(8)
+        #########################################################
+
+        # initialize the pygame library
         pg.init()
 
         # initialize clock
@@ -36,10 +39,10 @@ class RiverRaid:
         loader = InitDeck(preset=preset)
         self.settings = loader.load()
 
-        # hard coded game settings
-        player_name = 'player'
+        # hard coded game assets
         self.enemy_names = ['helicopter', 'ship']
-        self.prop_names = ['prop1', 'prop2', 'prop3']        
+        self.prop_names = ['prop1', 'prop2', 'prop3']    
+
         # box collision geometry dimension
         self.cg = {
             'player': (28,26),
@@ -57,60 +60,15 @@ class RiverRaid:
         pg.display.set_icon(icon)
         self.background = ((20, 50, 255))   # screen background color RGB 
 
-        # setup player and bullet
-        init_player_pos = [self.settings['width']/2, self.settings['height']-50]
-        bullet_speed_factor = 5
-        self.player = Player(scr=self.screen, name=player_name, ent_type='player', 
-                        cg=self.cg['player'], pos=init_player_pos, icon_list=['media/icon/jetfighter.png','media/icon/explosion2.png'], 
-                        v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed'],
-                        sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
-                        'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
-                        capacity=3000, dec_factor=1, inc_factor=30, low_fuel=0.2)
-
-        self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
-                        cg=self.cg['bullet'], pos=init_player_pos, icon_list=['media/icon/bullet.png'], 
-                        v_speed=self.settings['player_speed']*bullet_speed_factor, h_speed=0, 
-                        player_cg=self.cg['player'], sound_list=['media/sound/bullet.wav']) 
-
-        # setup walls 
-        self.walls = Walls(scr=self.screen, color=(45,135,10), icon_list=[], normal=200, extended=100, channel=350, 
-                            max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
-                            v_speed=self.settings['player_speed'], block_size=self.settings['player_speed'])
-
-
-        #### ACTION SPACE ########################################
-        self.action_space = ActionSpace()
-        ##########################################################
-
-        #### STATE SPACE #########################################
-        # state discretization parameters
-        block_size = self.settings['player_speed']
-        crop_h = 200
-        crop_v = 0
-        
-        # entity-encoding lists
-        wall_encoding = [self.walls, 4]
-        player_encoding =[self.player, 1]
-
-        # initialize the state space
-        self.observation_space = ObservationSpace(w=self.settings['width'], 
-                                                  h=self.settings['height'],
-                                                  player=player_encoding,
-                                                  wall=wall_encoding, block_size=block_size,
-                                                  crop_h=crop_h, crop_v=crop_v)
-
         # initialization of discrete state space plotting 
+        ##########################################################
         self.cmap = colors.ListedColormap(['blue','yellow','red','pink','green'])   # color map for visualization
         plt.ion()
         plt.gca().invert_yaxis()
         frame1 = plt.gca()
         frame1.axes.xaxis.set_ticklabels([])
         frame1.axes.yaxis.set_ticklabels([])        
-        ##########################################################
-
-        #### AGENT ###############################################
-        self.agent = Agent()
-        ##########################################################        
+        ##########################################################      
 
         #### RESET ###############################################
         self.reset()
@@ -395,7 +353,6 @@ class RiverRaid:
             self.restart_game(2000)
             self.player.reset()
             self.restart = False 
-            return self.is_running
         ############################################################    
 
         ### ACTIONS #################################################
@@ -495,6 +452,58 @@ class RiverRaid:
     this is also called when the environment is initialized
     '''
     def reset(self):
+
+        #### PLAYER INIT ########################################
+        player_name = 'player'
+        init_player_pos = [self.settings['width']/2, self.settings['height']-50]
+        bullet_speed_factor = 5
+        self.player = Player(scr=self.screen, name=player_name, ent_type='player', 
+                        cg=self.cg['player'], pos=init_player_pos, icon_list=['media/icon/jetfighter.png','media/icon/explosion2.png'], 
+                        v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed'],
+                        sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
+                        'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
+                        capacity=3000, dec_factor=1, inc_factor=30, low_fuel=0.2)
+        ##########################################################
+        
+        #### BULLET INIT ########################################
+        self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
+                        cg=self.cg['bullet'], pos=init_player_pos, icon_list=['media/icon/bullet.png'], 
+                        v_speed=self.settings['player_speed']*bullet_speed_factor, h_speed=0, 
+                        player_cg=self.cg['player'], sound_list=['media/sound/bullet.wav']) 
+        ##########################################################
+
+        #### WALL INIT ########################################
+        self.walls = Walls(scr=self.screen, color=(45,135,10), icon_list=[], normal=200, extended=100, channel=350, 
+                            max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
+                            v_speed=self.settings['player_speed'], block_size=self.settings['player_speed'])
+        ##########################################################
+
+        #### ACTION SPACE ########################################
+        self.action_space = ActionSpace()
+        ##########################################################
+
+        #### STATE SPACE #########################################
+        # state discretization parameters
+        block_size = self.settings['player_speed']
+        crop_h = 200
+        crop_v = 0
+        
+        # entity-encoding lists
+        wall_encoding = [self.walls, 4]
+        player_encoding =[self.player, 1]
+
+        # initialize the state space
+        self.observation_space = ObservationSpace(w=self.settings['width'], 
+                                                  h=self.settings['height'],
+                                                  player=player_encoding,
+                                                  wall=wall_encoding, block_size=block_size,
+                                                  crop_h=crop_h, crop_v=crop_v)      
+        ##########################################################
+
+        #### AGENT ###############################################
+        self.agent = Agent()
+        ##########################################################  
+
         self.enemy_randomizer = 200
         self.prop_randomizer = 200
         self.fuel_randomizer = 200

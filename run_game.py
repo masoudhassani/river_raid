@@ -2,13 +2,14 @@ from modules import RiverRaid, Agent
 import time
 import numpy as np
 
-env = RiverRaid(preset='AI', ai_agent=True, init_enemy_spawn=150,
+env = RiverRaid(preset='Basic', ai_agent=False, init_enemy_spawn=150,
                 init_prop_spawn=150, init_fuel_spawn=500)
 
 print('Action Space:', env.action_space)
 print('State Space:', env.observation_space)
 
 #### 
+env.reset()
 is_running = True 
 while is_running:
     action = env.agent.take_action(env)
