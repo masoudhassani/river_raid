@@ -4,7 +4,7 @@ from pygame import mixer
 
 class Bullet(Entity):
 
-    def update(self, keys, player_pos): 
+    def update(self, action, player_pos): 
         # handle movements
         if self.state == 'fired':
             self.fire()
@@ -12,7 +12,7 @@ class Bullet(Entity):
             self.pos = [player_pos[0]+self.player_cg[0]/2-self.cg[0]/2, player_pos[1]+4]
 
         # check if bullet is fired
-        if keys[pg.K_SPACE] and self.state == 'ready':
+        if 'SHOOT' in action and self.state == 'ready':
             self.state = 'fired'
 
         # check collision with boundaries 
@@ -20,10 +20,6 @@ class Bullet(Entity):
 
         # check if bullet is not in screen, it will be removed from memory 
         self.check_state()
-
-        # draw
-        if self.state == 'fired':
-            self.screen.blit(self.icons[0], self.pos)
 
     def fire(self):
         # play the explosion sound 
@@ -46,3 +42,8 @@ class Bullet(Entity):
     def reload(self):
         self.state = 'ready'
         self.sound_played = False
+
+    def render(self):
+        # draw
+        if self.state == 'fired':
+            self.screen.blit(self.icons[0], self.pos)

@@ -33,12 +33,14 @@ class Entity:
         self.icons = []
         for i in icon_list:
             self.icons.append(pg.image.load(i))   
+        self.current_icon = self.icons[0]
 
-    def update(self, keys, events=[]):
+    def update(self, action, events=[]):
+
         # handle speed
-        if keys[pg.K_UP]:
+        if 'UP' in action:
             self.speed_up()
-        elif keys[pg.K_DOWN]:
+        elif 'DOWN' in action:
             self.slow_down()
         else:
             self.current_speed_v = self.base_speed_v
@@ -52,9 +54,6 @@ class Entity:
             self.sound_played = True
 
         self.update_odometer()
-
-        # draw on screen
-        self.screen.blit(self.icons[0], self.pos) 
 
     def speed_up(self):
         self.current_speed_v = self.base_speed_v * 2.0
@@ -95,3 +94,7 @@ class Entity:
     def center(self):
         c = [self.pos[0] + self.cg[0]/2, self.pos[1] + self.cg[1]/2]
         return c
+
+    # draw on screen
+    def render(self):
+        self.screen.blit(self.current_icon, self.pos) 

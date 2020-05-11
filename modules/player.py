@@ -23,17 +23,18 @@ class Player(Entity):
                         }
         
 
-    def update(self, keys, fuel_col=False, close_enemies=0): 
+    def update(self, action, fuel_col=False, close_enemies=0): 
+
         # handle movements
-        if keys[pg.K_LEFT]:
+        if 'LEFT' in action:
             self.move_left()
-        elif keys[pg.K_RIGHT]:
+        elif 'RIGHT' in action:
             self.move_right()
 
         # handle speed
-        if keys[pg.K_UP]:
+        if 'UP' in action:
             self.speed_up()
-        elif keys[pg.K_DOWN]:
+        elif 'DOWN' in action:
             self.slow_down()
         else:
             self.current_speed_h = self.base_speed_h
@@ -43,7 +44,7 @@ class Player(Entity):
         # self.check_walls()
 
         # check player life
-        icon = self.check_life()
+        self.current_icon = self.check_life()
 
         # update travel distance 
         self.update_odometer()
@@ -53,9 +54,6 @@ class Player(Entity):
 
         # check the remaining fuel 
         self.check_fuel(fuel_col, close_enemies)
-
-        # draw
-        self.screen.blit(icon, self.pos)
 
         return self.travel_total
 

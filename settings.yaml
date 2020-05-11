@@ -1,7 +1,7 @@
 Basic:
     sound: 1     # 0: no sound, 1: with sound
-    player_speed: 2
-    enemy_speed: 2
+    player_speed: 4
+    enemy_speed: 4
     num_lives: 3
     width: 800
     height: 600    
@@ -14,3 +14,10 @@ Covid:
     width: 800
     height: 600    
 
+AI:
+    sound: 1     # 0: no sound, 1: with sound
+    player_speed: 4
+    enemy_speed: 4
+    num_lives: 1
+    width: 800
+    height: 600  

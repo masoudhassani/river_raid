@@ -3,15 +3,16 @@ import pygame as pg
 
 class Enemy(Entity):
 
-    def update(self, keys): 
+    def update(self, action): 
+        
         # handle speed
-        if keys[pg.K_UP]:
+        if 'UP' in action:
             self.speed_up()
-        elif keys[pg.K_DOWN]:
+        elif 'DOWN' in action:
             self.slow_down()
         else:
             self.current_speed_h = self.base_speed_h * self.sign(self.current_speed_h)
-            self.current_speed_v = self.base_speed_v
+            self.current_speed_v = self.base_speed_v        
 
         # handle movements
         self.move()
@@ -21,9 +22,6 @@ class Enemy(Entity):
 
         # check if enemy is not in screen, it will be removed from memory 
         self.is_active()
-
-        # draw
-        self.screen.blit(self.icons[0], self.pos)
 
     def move(self):
         self.pos[0] += self.current_speed_h
