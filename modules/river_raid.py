@@ -16,7 +16,14 @@ class RiverRaid:
         self.enemy_spawn_distance = init_enemy_spawn   #  spawn distance in pixel,lower means more enemy is spawned 
         self.prop_spawn_distance = init_prop_spawn
         self.fuel_spawn_distance = init_fuel_spawn
+        self.init_enemy_randomizer = init_enemy_spawn   #  spawn distance in pixel,lower means more enemy is spawned 
+        self.init_prop_randomizer = init_prop_spawn
+        self.init_fuel_randomizer = init_fuel_spawn
         self.ai_agent = ai_agent
+
+        # number of encoding values for each reduced state element
+        # for example, wall=0, player=1, ... enemy=4, the enc_size is 5
+        self.enc_size = 5   
 
         #### SOUND ##############################################
         pg.mixer.pre_init(16000, -16, 2, 512)
@@ -445,14 +452,20 @@ class RiverRaid:
         self.state = self.observation_space.update(entity_encoding) 
         ############################################################
 
-        return self.is_running, self.state
+        ### UPDATE REWARD ##########################################
+        self.reward = self.score_value - self.score_value_prev
+        self.score_value_prev = self.score_value
+        if not self.is_running:
+            self.reward = -1000
+        ############################################################
+
+        return self.state, self.reward, self.is_running
 
     '''
     reset all game metrics and variable 
     this is also called when the environment is initialized
     '''
     def reset(self):
-
         #### PLAYER INIT ########################################
         player_name = 'player'
         init_player_pos = [self.settings['width']/2, self.settings['height']-50]
@@ -496,17 +509,18 @@ class RiverRaid:
         self.observation_space = ObservationSpace(w=self.settings['width'], 
                                                   h=self.settings['height'],
                                                   player=player_encoding,
-                                                  wall=wall_encoding, block_size=block_size,
-                                                  crop_h=crop_h, crop_v=crop_v)      
+                                                  wall=wall_encoding, enc_size=self.enc_size,
+                                                  block_size=block_size,
+                                                  crop_h=crop_h, crop_v=crop_v)     
         ##########################################################
 
         #### AGENT ###############################################
         self.agent = Agent()
         ##########################################################  
 
-        self.enemy_randomizer = 200
-        self.prop_randomizer = 200
-        self.fuel_randomizer = 200
+        self.enemy_randomizer = self.init_enemy_randomizer
+        self.prop_randomizer = self.init_prop_randomizer
+        self.fuel_randomizer = self.init_fuel_randomizer
         self.enemies = []
         self.props = []
         self.explosions = []
@@ -520,7 +534,10 @@ class RiverRaid:
         self.restart = False
         self.game_paused = False 
         self.score_value = 0   
-        self.observation_space.reset()    
+        self.score_value_prev = 0
+        self.reward = 0
+
+        return self.observation_space.state  
 
     '''
     render the game environment on screen
@@ -564,6 +581,7 @@ class RiverRaid:
     NOTE: very slow!
     '''
     def discrete_render(self):
-        plt.imshow(np.transpose(self.state), cmap=self.cmap)
+        state_reshaped = self.state.reshape(self.state.shape[0],self.state.shape[1])
+        plt.imshow(np.transpose(state_reshaped), cmap=self.cmap)
         plt.draw() 
         plt.pause(0.001)

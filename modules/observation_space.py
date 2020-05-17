@@ -1,7 +1,7 @@
 import numpy as np 
 
 class ObservationSpace:
-    def __init__(self, w, h, player, wall, block_size=4, crop_h=200, crop_v=0):
+    def __init__(self, w, h, player, wall, enc_size=5, block_size=4, crop_h=200, crop_v=0):
         # game screen dimensions
         self.w = w
         self.h = h 
@@ -14,21 +14,25 @@ class ObservationSpace:
         # and its second element is the wall's encoding value
         self.wall = wall 
 
+        # number of encoding values. number of entities+3
+        # for example, if we have enemy and fuel, enc_size is 5
+        self.enc_size = enc_size    
         self.block_size = block_size
         self.crop_h = crop_h
         self.crop_v = crop_v 
 
         # reset the state
         self.reset()
-        self.n = (self.state.shape[0], self.state.shape[1])
+        self.n = (self.state.shape[0], self.state.shape[1], self.state.shape[2])
 
 
     '''
     reset the state
     '''
     def reset(self):
-        self.state = np.zeros([int((self.w-self.crop_h)/self.block_size), 
-                int(self.h/self.block_size)])
+        s = np.zeros([int((self.w-self.crop_h)/self.block_size), 
+                                int(self.h/self.block_size)], dtype=np.uint8)
+        self.state = s.reshape(s.shape[0], s.shape[1], 1)
 
     '''
     return the game state
@@ -71,17 +75,18 @@ class ObservationSpace:
         for i in range(int(self.h/self.block_size)):
             wall = self.wall[0].return_wall_coordinate(i*self.block_size)
             for j in range(int((wall[0]-self.crop_h/2)/self.block_size)):
-                self.state[j][i] = self.wall[1]
+                self.state[j][i][0] = self.wall[1]
             for j in range(int((wall[1]-self.crop_h/2)/self.block_size), 
                             int((self.w-self.crop_h)/self.block_size)):
-                self.state[j][i] = self.wall[1]
+                self.state[j][i][0] = self.wall[1]
         ############################################### 
 
         #### 1D STATE #################################
         # self.state_flat = self.state.flatten() 
         ############################################### 
-
-        return self.state
+        # self.state_reshaped = self.state.reshape(self.state.shape[0],
+        #                                         self.state.shape[1], 1)
+        return self.state#, self.state_reshaped
 
     '''
     fill self.state with encoding values assigned to each asset 
@@ -99,7 +104,7 @@ class ObservationSpace:
         for i in range(width+1):
             for j in range(height+1):
                 self.state[pos[0]+i][min(pos[1]+j, 
-                            int(self.h/self.block_size)-1)] = value
+                            int(self.h/self.block_size)-1)][0] = value
 
     def __str__(self):
-        return ('Discrete {}'.format(self.state.shape))
+        return ('Discrete {}'.format(self.n))
