@@ -10,11 +10,7 @@ class ActionSpace:
     create a list of available actions based on a condition
     '''
     def available_actions(self, condition, player_pos=[], wall=[]):
-        self.actions = ['LEFT', 'RIGHT', 'LEFT_SHOOT', 'RIGHT_SHOOT', 'SHOOT']
-        # if condition:
-        #     self.actions = ['LEFT', 'RIGHT']
-        # else:
-        #     self.actions = ['LEFT', 'RIGHT', 'LEFT_SHOOT', 'RIGHT_SHOOT', 'SHOOT']
+        self.actions = ['NO_MOVE', 'LEFT', 'RIGHT', 'LEFT_SHOOT', 'RIGHT_SHOOT', 'SHOOT']
   
     '''
     randomly select an action from available actions

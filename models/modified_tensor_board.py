@@ -8,7 +8,8 @@ class ModifiedTensorBoard(TensorBoard):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.step = 1
-        self.writer = tf.compat.v1.summary.FileWriter(self.log_dir)
+        self._log_write_dir = self.log_dir
+        self.writer = tf.summary.create_file_writer(self.log_dir)
 
     # Overriding this method to stop creating default log writer
     def set_model(self, model):
@@ -31,27 +32,12 @@ class ModifiedTensorBoard(TensorBoard):
     # Custom method for saving own metrics
     # Creates writer, writes custom metrics and closes writer
     def update_stats(self, **stats):
-        # self.writer.add_session_log(stats)
         self._write_logs(stats, self.step)
         self.step += 1
 
     def _write_logs(self, logs, index):
         import tensorflow as tf
-        for name, value in logs.items():
-            if name in ['batch', 'size']:
-                continue
-            if name.startswith('val_'):
-                # writer = self.val_writer
-                name = name[4:]  # remove val_
-            else:
-                writer = self.writer
-            summary = tf.Summary()
-            summary_value = summary.value.add()
-            if isinstance(value, np.ndarray):
-                summary_value.simple_value = value.item()
-            else:
-                summary_value.simple_value = value
-            summary_value.tag = name
-            writer.add_summary(summary, index)
-        self.writer.flush()
-        # self.val_writer.flush()
+        with self.writer.as_default():
+            for name, value in logs.items():
+                summary = tf.summary.scalar(name, value, index)
+                self.writer.flush()

@@ -1,6 +1,6 @@
 from modules import RiverRaid
 
-env = RiverRaid(preset='Basic', ai_agent=False, init_enemy_spawn=50,
+env = RiverRaid(preset='Basic', ai_agent=False, random=False, init_enemy_spawn=50,
                 init_prop_spawn=50, init_fuel_spawn=500)
 
 env.reset()

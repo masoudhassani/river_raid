@@ -1,7 +1,7 @@
 import numpy as np 
 
 class ObservationSpace:
-    def __init__(self, w, h, player, wall, enc_size=5, block_size=4, crop_h=200, crop_v=0):
+    def __init__(self, w, h, player, wall, enc_max=4, block_size=4, crop_h=200, crop_v=0):
         # game screen dimensions
         self.w = w
         self.h = h 
@@ -14,9 +14,9 @@ class ObservationSpace:
         # and its second element is the wall's encoding value
         self.wall = wall 
 
-        # number of encoding values. number of entities+3
-        # for example, if we have enemy and fuel, enc_size is 5
-        self.enc_size = enc_size    
+        # maximum of encoding values. number of entities+2
+        # for example, if we have enemy and fuel, enc_size is 4
+        self.enc_max = enc_max    
         self.block_size = block_size
         self.crop_h = crop_h
         self.crop_v = crop_v 
@@ -30,9 +30,8 @@ class ObservationSpace:
     reset the state
     '''
     def reset(self):
-        s = np.zeros([int((self.w-self.crop_h)/self.block_size), 
-                                int(self.h/self.block_size)], dtype=np.uint8)
-        self.state = s.reshape(s.shape[0], s.shape[1], 1)
+        self.state = np.zeros([int((self.w-self.crop_h)/self.block_size), 
+                                int(self.h/self.block_size), 1], dtype=np.uint8)
 
     '''
     return the game state
@@ -44,10 +43,10 @@ class ObservationSpace:
 
     we consider 5+ different encoding values for each block which represent:
     empty             -> 0
-    player            -> 1
-    enemy             -> 2
+    wall              -> 1
+    player            -> 2
     fuel              -> 3
-    wall              -> 4
+    enemy             -> 4
     additional entity -> 5
 
     we crop pixles from the right and left of the screen since player cannot go there.
@@ -81,11 +80,7 @@ class ObservationSpace:
                 self.state[j][i][0] = self.wall[1]
         ############################################### 
 
-        #### 1D STATE #################################
-        # self.state_flat = self.state.flatten() 
-        ############################################### 
-        # self.state_reshaped = self.state.reshape(self.state.shape[0],
-        #                                         self.state.shape[1], 1)
+        self.state = self.state/self.enc_max
         return self.state#, self.state_reshaped
 
     '''

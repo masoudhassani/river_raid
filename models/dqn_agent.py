@@ -7,16 +7,16 @@ from tensorflow.keras.callbacks import TensorBoard
 from .cnn import CNN 
 from .modified_tensor_board import  ModifiedTensorBoard
 
-REPLAY_MEMORY_SIZE = 50000
-MIN_REPLAY_MEMORY_SIZE = 200
-MINIBATCH_SIZE = 50
-MODEL_NAME = '2x256'
+REPLAY_MEMORY_SIZE = 40000
+MIN_REPLAY_MEMORY_SIZE = 3000
+MINIBATCH_SIZE = 100
+MODEL_NAME = '32x64x64_d2'
 UPDATE_TARGET_EVERY = 5   # every n episodes 
 
 class Agent:
     def __init__(self, input_shape, num_actions, epsilon_decay=False, epsilon=0.01,
-                max_epsilon=1.0, min_epsilon=0.01, epsilon_decay_factor=0.99, 
-                gamma=0.99,learning_rate=0.01, enc_size=5):
+                max_epsilon=1.0, min_epsilon=0.01, epsilon_decay_factor=0.999, 
+                gamma=0.99,learning_rate=0.01, enc_max=4):
         self.input_shape = input_shape
         self.num_actions = num_actions
 
@@ -27,7 +27,7 @@ class Agent:
         self.epsilon_decay_factor = epsilon_decay_factor
         self.gamma = gamma
         self.learning_rate = learning_rate
-        self.enc_size = enc_size
+        self.enc_max = enc_max
 
         # select epsilon 
         if self.epsilon_decay:
@@ -57,7 +57,7 @@ class Agent:
         self.replay_memory.append(transition)
 
     def get_q(self, state):
-        return self.main_model.predict(np.array(state).reshape(-1, *state.shape)/self.enc_size)[0]
+        return self.main_model.predict(np.array(state).reshape(-1, *state.shape)/self.enc_max)[0]
 
     def train(self, is_running, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
@@ -65,10 +65,10 @@ class Agent:
 
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
 
-        current_states = np.array([transition[0] for transition in minibatch])/self.enc_size
+        current_states = np.array([transition[0] for transition in minibatch])/self.enc_max
         current_q_list = self.main_model.predict(current_states)
 
-        new_current_states = np.array([transition[3] for transition in minibatch])/self.enc_size
+        new_current_states = np.array([transition[3] for transition in minibatch])/self.enc_max
         future_q_list = self.target_model.predict(new_current_states)
 
         X = []
@@ -88,8 +88,8 @@ class Agent:
             X.append(current_state)
             y.append(current_q)
 
-        self.main_model.fit(np.array(X)/self.enc_size, np.array(y), batch_size=MINIBATCH_SIZE,
-                            verbose=1, shuffle=False, callbacks=[self.tensorboard] if not is_running else None)
+        self.main_model.fit(np.array(X)/self.enc_max, np.array(y), batch_size=MINIBATCH_SIZE,
+                            verbose=0, shuffle=False, callbacks=[self.tensorboard] if not is_running else None)
 
         if not is_running:
             self.update_target_model_counter += 1
