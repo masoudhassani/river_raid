@@ -23,7 +23,7 @@ class ObservationSpace:
 
         # reset the state
         self.reset()
-        self.n = (self.state.shape[0], self.state.shape[1], self.state.shape[2])
+        self.n = (self.state.shape[0], self.state.shape[1])
 
 
     '''
@@ -31,7 +31,7 @@ class ObservationSpace:
     '''
     def reset(self):
         self.state = np.zeros([int((self.w-self.crop_h)/self.block_size), 
-                                int(self.h/self.block_size), 1], dtype=np.uint8)
+                                int(self.h/self.block_size)], dtype=np.uint8)
 
     '''
     return the game state
@@ -74,10 +74,10 @@ class ObservationSpace:
         for i in range(int(self.h/self.block_size)):
             wall = self.wall[0].return_wall_coordinate(i*self.block_size)
             for j in range(int((wall[0]-self.crop_h/2)/self.block_size)):
-                self.state[j][i][0] = self.wall[1]
+                self.state[j][i] = self.wall[1]
             for j in range(int((wall[1]-self.crop_h/2)/self.block_size), 
                             int((self.w-self.crop_h)/self.block_size)):
-                self.state[j][i][0] = self.wall[1]
+                self.state[j][i] = self.wall[1]
         ############################################### 
 
         self.state = self.state/self.enc_max
@@ -99,7 +99,7 @@ class ObservationSpace:
         for i in range(width+1):
             for j in range(height+1):
                 self.state[pos[0]+i][min(pos[1]+j, 
-                            int(self.h/self.block_size)-1)][0] = value
+                            int(self.h/self.block_size)-1)] = value
 
     def __str__(self):
         return ('Discrete {}'.format(self.n))

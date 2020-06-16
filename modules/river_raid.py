@@ -84,7 +84,7 @@ class RiverRaid:
         #### DETERMINISTIC GAME FOR AI ###########################
         if not self.random_assets:
             a = []
-            with open('trainings/assets-position.csv') as pos:
+            with open('media/assets-position.csv') as pos:
                 reader = csv.reader(pos, delimiter=',')
                 next(reader)   # skip header
                 for row in reader:
@@ -563,7 +563,7 @@ class RiverRaid:
         self.state = np.mean(tmp_arr, axis=2).astype(np.uint8)
 
         # reshape to be familiar for keras
-        self.state = self.state.reshape(self.state.shape[0], self.state.shape[1], 1)
+        # self.state = self.state.reshape(self.state.shape[0], self.state.shape[1])
         
         ############################################################
 

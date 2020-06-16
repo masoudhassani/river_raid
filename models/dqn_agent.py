@@ -7,16 +7,16 @@ from tensorflow.keras.callbacks import TensorBoard
 from .cnn import CNN 
 from .modified_tensor_board import  ModifiedTensorBoard
 
-REPLAY_MEMORY_SIZE = 40000
-MIN_REPLAY_MEMORY_SIZE = 3000
-MINIBATCH_SIZE = 100
-MODEL_NAME = '32x64x64_d2'
+REPLAY_MEMORY_SIZE = 1000000
+MIN_REPLAY_MEMORY_SIZE = 20000
+MINIBATCH_SIZE = 32
+MODEL_NAME = '16x32'
 UPDATE_TARGET_EVERY = 5   # every n episodes 
 
 class Agent:
     def __init__(self, input_shape, num_actions, epsilon_decay=False, epsilon=0.01,
-                max_epsilon=1.0, min_epsilon=0.01, epsilon_decay_factor=0.999, 
-                gamma=0.99,learning_rate=0.01, enc_max=4):
+                max_epsilon=1.0, min_epsilon=0.1, epsilon_decay_steps=100000, 
+                gamma=0.99,learning_rate=0.01, enc_max=255):
         self.input_shape = input_shape
         self.num_actions = num_actions
 
@@ -24,7 +24,7 @@ class Agent:
         self.epsilon_decay = epsilon_decay
         self.max_epsilon = max_epsilon
         self.min_epsilon = min_epsilon
-        self.epsilon_decay_factor = epsilon_decay_factor
+        self.epsilon_decay_steps = epsilon_decay_steps
         self.gamma = gamma
         self.learning_rate = learning_rate
         self.enc_max = enc_max
@@ -52,12 +52,16 @@ class Agent:
         # when we update the targt model
         self.update_target_model_counter = 0
 
+        # this is used to update epsilon
+        self.step = 0
 
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
     def get_q(self, state):
-        return self.main_model.predict(np.array(state).reshape(-1, *state.shape)/self.enc_max)[0]
+        s = np.array(state).reshape(-1, *state.shape)/self.enc_max   # make the state compatible with tensorflow (x,x,x,x)
+        q = self.main_model.predict(s)[0]    # [0] is used to get the first and only member of a list of list
+        return(q)
 
     def train(self, is_running, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
@@ -101,5 +105,6 @@ class Agent:
 
     def update_epsilon(self):
         if self.epsilon_decay:
-            self.epsilon *= self.epsilon_decay_factor
-            self.epsilon = max(self.min_epsilon, self.epsilon)            
+            self.epsilon = self.max_epsilon - self.step*((self.max_epsilon-self.min_epsilon)/self.epsilon_decay_steps)
+            self.epsilon = max(self.min_epsilon, self.epsilon)      
+            self.step += 1      
