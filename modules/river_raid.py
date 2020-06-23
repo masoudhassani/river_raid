@@ -596,7 +596,7 @@ class RiverRaid:
                         v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed'],
                         sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
                         'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
-                        capacity=3000, dec_factor=1, inc_factor=30, low_fuel=0.2)
+                        capacity=50000, dec_factor=1, inc_factor=30, low_fuel=0.2)
         ##########################################################
         
         #### BULLET INIT ########################################

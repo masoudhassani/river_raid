@@ -3,19 +3,21 @@ import time
 import logging 
 import numpy as np
 from models.dqn_agent import Agent
+from models.utils import display_activations
 import tensorflow as tf 
 from models.cnn import CNN 
+from keract import get_activations, display_heatmaps
 
 # PARAMETERS #########################
 render = True               # if true, the gameplay will be shown
 random_assets = True              # False for deterministic game
-max_steps = 7000             # number of time steps per game
+max_steps = 70000             # number of time steps per game
 stack_size = 4              # number of consecutive frames to be stacked to represent a state
-model_name = 'trainings/16x32_re_6980__825.00max__323.60avg_-281.00min__1592264617.model'
+model_name = 'trainings/16x32_re_14495_1065.00max__531.80avg_-231.00min__1592927767.model'
 ######################################
 
 # GAME INITTIALIZATION ########################
-env = RiverRaid(preset='AI', ai_agent=True, random=random_assets, init_enemy_spawn=220,
+env = RiverRaid(preset='AI', ai_agent=True, random=random_assets, init_enemy_spawn=160,
                 init_prop_spawn=150, init_fuel_spawn=400)  
 ###############################################
 
@@ -51,10 +53,12 @@ while is_running:
 
     ### STACK UP 4 FRAMES ##############################
     new_state = [0] * stack_size
+    vis_state = [0] * stack_size    # this is created for visualization of convolutional layers
     reward = 0
     for i in range(stack_size):
         s, r, is_running = env.step(action) 
         new_state[i] = s   # stacking
+        vis_state[i] = np.transpose(s)
         reward += r        # accumulating the rewards
 
         # if in the middle of stacking, the agent dies, the rest of stack will be the same as the last state
@@ -65,10 +69,17 @@ while is_running:
             break 
 
     new_state = np.array(new_state)
+    vis_state = np.array(vis_state)
     ####################################################
     
     current_state = new_state
     episode_reward += reward 
+
+    # visualize convolutional layers
+    visualize_states= vis_state.reshape(1,vis_state.shape[0], vis_state.shape[1], vis_state.shape[2])
+    activations = get_activations(model, visualize_states)
+    subset = {'conv2d': activations['conv2d']}
+    display_activations(subset, step, cmap=None, save=True, directory='vis', data_format='channels_first')
 
     # render an episode
     if render:
@@ -77,3 +88,21 @@ while is_running:
 model = None 
 env = None
 print('Total Game Reward:',episode_reward)
+
+'''
+    Layer (type)                 Output Shape              Param #
+    =================================================================
+    conv2d (Conv2D)              (None, 16, 36, 36)        4112
+    _________________________________________________________________
+    activation (Activation)      (None, 16, 36, 36)        0
+    _________________________________________________________________
+    conv2d_1 (Conv2D)            (None, 32, 17, 17)        8224
+    _________________________________________________________________
+    activation_1 (Activation)    (None, 32, 17, 17)        0
+    _________________________________________________________________
+    flatten (Flatten)            (None, 9248)              0
+    _________________________________________________________________
+    dense (Dense)                (None, 256)               2367744
+    _________________________________________________________________
+    dense_1 (Dense)              (None, 6)                 1542
+''' 

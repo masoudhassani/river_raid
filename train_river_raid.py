@@ -23,7 +23,7 @@ aggregate_stats_every = 5   # every n episode
 max_steps = 650             # number of time steps per game
 stack_size = 4              # number of consecutive frames to be stacked to represent a state
 max_episodes = 20000        # number of games to play
-learning_rate = 0.001
+learning_rate = 0.0001      # up to episode 5000: 0.001, up to episode 12000: 0.0002, rest: 0.0001  
 min_reward_save = 300       # min reward threshold for saving a model weight
 model_name = '16x32_re'
 last_episode = 0
@@ -53,14 +53,14 @@ agent = Agent(input_shape=input_shape,
 
 # LOAD A PRETRAINED MODEL #######################
 # uncomment the following to load a trained model
-# trained_model_name = 'trainings/16x32_5000_140_1592020262.model'
-# last_episode = 5000
-# model = tf.keras.models.load_model(trained_model_name)
-# print(model.summary())
-# print('Starting from a trained model')
-# agent.main_model = model
-# agent.target_model = model
-# agent.max_epsilon = 0.1
+trained_model_name = 'trainings/16x32_re_11825__605.00max__340.80avg_-301.00min__1592715040.model'
+last_episode = 11825
+model = tf.keras.models.load_model(trained_model_name)
+print(model.summary())
+print('Starting from a trained model')
+agent.main_model = model
+agent.target_model = model
+agent.max_epsilon = 0.1
 #################################################
 
 episode = last_episode

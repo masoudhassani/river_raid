@@ -78,8 +78,8 @@ class Agent:
         X = []
         y = []
 
-        for idx, (current_state, action, reward, new_current_state, is_running) in enumerate(minibatch):
-            if is_running:
+        for idx, (current_state, action, reward, new_current_state, not_terminal) in enumerate(minibatch):
+            if not_terminal:
                 max_future_q = np.max(future_q_list[idx])
                 new_q = reward + self.gamma * max_future_q
 
