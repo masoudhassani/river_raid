@@ -53,7 +53,7 @@ agent = Agent(input_shape=input_shape,
 
 # LOAD A PRETRAINED MODEL #######################
 # uncomment the following to load a trained model
-trained_model_name = 'trainings/16x32_re_11825__605.00max__340.80avg_-301.00min__1592715040.model'
+trained_model_name = 'trained_models/river_raid.model'
 last_episode = 11825
 model = tf.keras.models.load_model(trained_model_name)
 print(model.summary())

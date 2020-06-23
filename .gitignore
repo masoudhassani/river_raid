@@ -131,5 +131,6 @@ dmypy.json
 .vscode/
 logs/
 trainings/
+trainings_backup/
 
 /tf

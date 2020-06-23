@@ -13,7 +13,7 @@ render = True               # if true, the gameplay will be shown
 random_assets = True              # False for deterministic game
 max_steps = 70000             # number of time steps per game
 stack_size = 4              # number of consecutive frames to be stacked to represent a state
-model_name = 'trainings/16x32_re_14495_1065.00max__531.80avg_-231.00min__1592927767.model'
+model_name = 'trained_models/river_raid.model'
 ######################################
 
 # GAME INITTIALIZATION ########################
