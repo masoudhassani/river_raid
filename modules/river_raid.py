@@ -7,16 +7,27 @@ from modules import InitDeck
 from modules import Entity, Player, Enemy, Bullet, Walls, ActionSpace, ObservationSpace, Agent
 import matplotlib.pyplot as plt 
 from matplotlib import colors
+import cv2
+import csv
 
 class RiverRaid:
-    def __init__(self, preset='Basic', ai_agent=False, init_enemy_spawn=150,
+    def __init__(self, preset='Basic', ai_agent=False, random=False, init_enemy_spawn=150,
                 init_prop_spawn=150, init_fuel_spawn=500):
 
         # member variables from arg
         self.enemy_spawn_distance = init_enemy_spawn   #  spawn distance in pixel,lower means more enemy is spawned 
         self.prop_spawn_distance = init_prop_spawn
         self.fuel_spawn_distance = init_fuel_spawn
+        self.init_enemy_randomizer = init_enemy_spawn   #  spawn distance in pixel,lower means more enemy is spawned 
+        self.init_prop_randomizer = init_prop_spawn
+        self.init_fuel_randomizer = init_fuel_spawn
         self.ai_agent = ai_agent
+        self.random_assets = random
+
+        # max of encoding values for each reduced state element
+        # for example, wall=0, player=1, ... enemy=4, the enc_max is 4
+        # for rgb or grayscale state, use 255
+        self.enc_max = 255  
 
         #### SOUND ##############################################
         pg.mixer.pre_init(16000, -16, 2, 512)
@@ -46,7 +57,7 @@ class RiverRaid:
         # box collision geometry dimension
         self.cg = {
             'player': (28,26),
-            'bullet': (2,8),
+            'bullet': (2,14),
             'helicopter': (32,20),
             'ship': (64,20),
             'prop': (64,64),
@@ -70,6 +81,18 @@ class RiverRaid:
         frame1.axes.yaxis.set_ticklabels([])        
         ##########################################################      
 
+        #### DETERMINISTIC GAME FOR AI ###########################
+        if not self.random_assets:
+            a = []
+            with open('media/assets-position.csv') as pos:
+                reader = csv.reader(pos, delimiter=',')
+                next(reader)   # skip header
+                for row in reader:
+                    a.append(row)
+            
+            self.assets = np.array(a)
+
+        ##########################################################
         #### RESET ###############################################
         self.reset()
         ########################################################## 
@@ -78,7 +101,7 @@ class RiverRaid:
     '''
     creates enemies randomly with a random horizontal position
     '''
-    def create_enemies(self):
+    def create_enemies(self, data=None):
         # update enemy list 
         self.enemies = [x for x in self.enemies if x.is_active()]
 
@@ -87,32 +110,47 @@ class RiverRaid:
             if not e.is_active():
                 del e 
 
-        if (self.travel_distance-self.last_enemey_spawn) > self.enemy_randomizer:
-            self.last_enemey_spawn = self.travel_distance
-            self.enemy_randomizer = random.randint(self.enemy_spawn_distance*0.5, self.enemy_spawn_distance*1.5)  
-
-            enemy_name = random.choice(self.enemy_names) 
-            # get the wall coordinate at y=0 for spawning 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            # get the wall coordinate at the bottom of CG for spawning 
-            wall_2 = self.walls.return_wall_coordinate(self.cg[enemy_name][1]*3)
-            # select the correct wall size 
-            if wall_1[0] >= wall_2[0]:
-                wall = wall_1
-                pos_h = random.randint(wall[0],wall[1]-self.cg[enemy_name][0])
-                vel_h = random.randint(0,1)
+        if not self.random_assets:
+            if data != None:
+                # get the wall coordinate at y=0 for spawning 
+                wall = self.walls.return_wall_coordinate(0)            
+                enemy_name = data[0]
+                pos_h = data[1]
+                vel_h = data[2]
                 enemy = Enemy(scr=self.screen, name=enemy_name, ent_type='enemy', 
                                 cg=self.cg[enemy_name], pos=[pos_h, 0], icon_list=['media/icon/{}.png'.format(enemy_name)],
                                 v_speed=self.settings['player_speed'], h_speed=self.settings['enemy_speed']*vel_h)
                 self.enemies.append(enemy)
                 enemy.set_walls(wall)
+        
+        else:
+            if (self.travel_distance-self.last_enemey_spawn) > self.enemy_randomizer:
+                self.last_enemey_spawn = self.travel_distance
+                self.enemy_randomizer = random.randint(self.enemy_spawn_distance*0.5, self.enemy_spawn_distance*1.5)  
+
+                enemy_name = random.choice(self.enemy_names) 
+                # get the wall coordinate at y=0 for spawning 
+                wall_1 = self.walls.return_wall_coordinate(0)
+                # get the wall coordinate at the bottom of CG for spawning 
+                wall_2 = self.walls.return_wall_coordinate(self.cg[enemy_name][1]*3)
+
+                # select the correct wall size 
+                if wall_1[0] >= wall_2[0]:
+                    wall = wall_1
+                    pos_h = random.randint(wall[0], wall[1]-self.cg[enemy_name][0])
+                    vel_h = random.randint(0,1)
+                    enemy = Enemy(scr=self.screen, name=enemy_name, ent_type='enemy', 
+                                    cg=self.cg[enemy_name], pos=[pos_h, 0], icon_list=['media/icon/{}.png'.format(enemy_name)],
+                                    v_speed=self.settings['player_speed'], h_speed=self.settings['enemy_speed']*vel_h)
+                    self.enemies.append(enemy)
+                    enemy.set_walls(wall)
 
     '''
     create props randomly and in random horizontal position
     player cannot interact with props since they are positioned 
     outside of boundaries
     '''
-    def create_props(self):
+    def create_props(self, data=None):
         # update prop list 
         self.props = [x for x in self.props if x.is_active()]
 
@@ -121,32 +159,46 @@ class RiverRaid:
             if not p.is_active():
                 del p
 
-        if (self.travel_distance-self.last_prop_spawn) > self.prop_randomizer:
-            self.last_prop_spawn = self.travel_distance
-            self.prop_randomizer = random.randint(self.prop_spawn_distance*0.3, self.prop_spawn_distance*1.3)    
+        if not self.random_assets:
+            if data != None:
+                prop_name = random.choice(self.prop_names) 
+                # get the wall coordinate at y=0 for spawning 
+                wall = self.walls.return_wall_coordinate(0)            
+                pos_h = data[1]
 
-            prop_name = random.choice(self.prop_names) 
-            # get the wall coordinate at y=0 for spawning 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            # get the wall coordinate at the bottom of CG for spawning 
-            wall_2 = self.walls.return_wall_coordinate(self.cg['prop'][1])
-            # select the correct wall size 
-            wall = min(wall_1, wall_2)
+                prop = Enemy(scr=self.screen, name=prop_name, ent_type='prop', 
+                                cg=self.cg['prop'], pos=[pos_h, 0], icon_list=['media/icon/{}.png'.format(prop_name)],
+                                v_speed=self.settings['player_speed'], h_speed=0)
+                self.props.append(prop)
+                prop.set_walls(wall)
+        
+        else:
+            if (self.travel_distance-self.last_prop_spawn) > self.prop_randomizer:
+                self.last_prop_spawn = self.travel_distance
+                self.prop_randomizer = random.randint(self.prop_spawn_distance*0.3, self.prop_spawn_distance*1.3)    
 
-            pos_h = []
-            pos_h.append(random.randint(0, wall[0]-self.cg['prop'][0]))
-            pos_h.append(random.randint(wall[1],self.settings['width']-self.cg['prop'][0]))
-            pos = random.choice(pos_h) 
-            prop = Enemy(scr=self.screen, name=prop_name, ent_type='prop', 
-                            cg=self.cg['prop'], pos=[pos, 0], icon_list=['media/icon/{}.png'.format(prop_name)],
-                            v_speed=self.settings['player_speed'], h_speed=0)
-            self.props.append(prop)
-            prop.set_walls(wall)
+                prop_name = random.choice(self.prop_names) 
+                # get the wall coordinate at y=0 for spawning 
+                wall_1 = self.walls.return_wall_coordinate(0)
+                # get the wall coordinate at the bottom of CG for spawning 
+                wall_2 = self.walls.return_wall_coordinate(self.cg['prop'][1])
+                # select the correct wall size 
+                wall = min(wall_1, wall_2)
+
+                pos_h = []
+                pos_h.append(random.randint(0, wall[0]-self.cg['prop'][0]))
+                pos_h.append(random.randint(wall[1],self.settings['width']-self.cg['prop'][0]))
+                pos = random.choice(pos_h) 
+                prop = Enemy(scr=self.screen, name=prop_name, ent_type='prop', 
+                                cg=self.cg['prop'], pos=[pos, 0], icon_list=['media/icon/{}.png'.format(prop_name)],
+                                v_speed=self.settings['player_speed'], h_speed=0)
+                self.props.append(prop)
+                prop.set_walls(wall)
 
     '''
     create fuel pumps randomly and on a random horizontal position
     '''
-    def create_fuels(self):
+    def create_fuels(self, data=None):
         # update fuel list 
         self.fuels = [x for x in self.fuels if x.is_active()]
 
@@ -155,23 +207,36 @@ class RiverRaid:
             if not f.is_active():
                 del f
 
-        if (self.travel_distance-self.last_fuel_spawn) > self.fuel_randomizer:
-            self.last_fuel_spawn = self.travel_distance
-            self.fuel_randomizer = random.randint(self.fuel_spawn_distance*0.3, self.fuel_spawn_distance*1.5)  
+        if not self.random_assets:
+            if data != None:
+                # get the wall coordinate at y=0 for spawning 
+                wall = self.walls.return_wall_coordinate(0)            
+                pos_h = data[1]
 
-            # get the wall coordinate at y=0 for spawning 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            # get the wall coordinate at the bottom of CG for spawning 
-            wall_2 = self.walls.return_wall_coordinate(self.cg['fuel'][1]*2.5)
-            # select the correct wall size 
-            if wall_1[0] >= wall_2[0]:
-                wall = wall_1
-                pos_h = random.randint(wall[0],wall[1]-self.cg['fuel'][0])
                 fuel = Enemy(scr=self.screen, name='fuel', ent_type='fuel', 
                                 cg=self.cg['fuel'], pos=[pos_h, 0], icon_list=['media/icon/fuel.png'],
                                 v_speed=self.settings['player_speed'], h_speed=0)
                 self.fuels.append(fuel)
                 fuel.set_walls(wall)
+        
+        else:
+            if (self.travel_distance-self.last_fuel_spawn) > self.fuel_randomizer:
+                self.last_fuel_spawn = self.travel_distance
+                self.fuel_randomizer = random.randint(self.fuel_spawn_distance*0.3, self.fuel_spawn_distance*1.5)  
+
+                # get the wall coordinate at y=0 for spawning 
+                wall_1 = self.walls.return_wall_coordinate(0)
+                # get the wall coordinate at the bottom of CG for spawning 
+                wall_2 = self.walls.return_wall_coordinate(self.cg['fuel'][1]*2.5)
+                # select the correct wall size 
+                if wall_1[0] >= wall_2[0]:
+                    wall = wall_1
+                    pos_h = random.randint(wall[0],wall[1]-self.cg['fuel'][0])
+                    fuel = Enemy(scr=self.screen, name='fuel', ent_type='fuel', 
+                                    cg=self.cg['fuel'], pos=[pos_h, 0], icon_list=['media/icon/fuel.png'],
+                                    v_speed=self.settings['player_speed'], h_speed=0)
+                    self.fuels.append(fuel)
+                    fuel.set_walls(wall)
 
     '''
     collision detection between enemies and player/bullet
@@ -193,6 +258,12 @@ class RiverRaid:
                         self.score_value += 60
                     elif e.name == 'ship':
                         self.score_value += 40
+                    
+                    # stop the episode for AI if it hits an enemy
+                    # if self.ai_agent:
+                    #     self.reward = 1000
+                        # self.is_running = False
+
 
             # if the player hits the enemy
             if self.player.pos[1] <= e.pos[1]+e.cg[1] and self.player.pos[1]+self.player.cg[1] >= e.pos[1]:
@@ -210,6 +281,7 @@ class RiverRaid:
                         self.score_value += 60
                     elif e.name == 'ship':
                         self.score_value += 40
+                    
 
     '''
     collision detection between player and walls
@@ -247,6 +319,9 @@ class RiverRaid:
             if self.player.pos[1] <= f.pos[1]+f.cg[1] and self.player.pos[1]+self.player.cg[1] >= f.pos[1]:
                 if self.player.pos[0] < f.pos[0]+f.cg[0] and self.player.pos[0]+self.player.cg[0]> f.pos[0]:
                     collision = True 
+                    
+                    # add reward for AI agent when it is passing over a fuel
+                    self.reward = 15
 
             # if the bullet hits the fuel tank
             if self.bullet.state == 'fired':
@@ -347,6 +422,7 @@ class RiverRaid:
     '''
     def step(self, action):
         self.clock.tick(self.FPS)
+        self.reward = 0
 
         ### RESTART #################################################
         if self.restart:
@@ -385,16 +461,44 @@ class RiverRaid:
         self.wall_collision()
         ############################################################ 
 
-        ### ENEMY #################################################
-        self.create_enemies()
-        ############################################################
+        # random creation of assets
+        if self.random_assets:
+            ### ENEMY #################################################
+            self.create_enemies()
+            ############################################################
 
-        ### PROP #################################################
-        self.create_props()
-        ############################################################
+            ### PROP #################################################
+            self.create_props()
+            ############################################################
 
-        ### FUEL #################################################
-        self.create_fuels()
+            ### FUEL #################################################
+            self.create_fuels()
+            ##########################################################
+        
+        # predefined asset position based on a csv file
+        else:
+            if self.travel_distance in self.assets[:, 1].astype(int):
+                idx = np.argwhere(self.assets[:, 1].astype(int) == self.travel_distance)[0][0]
+                asset_data = [self.assets[idx][0], self.assets[idx][2].astype(int), self.assets[idx][3].astype(int)]
+                if asset_data[0] == 'ship' or asset_data[0] == 'helicopter':
+                    self.create_enemies(asset_data)
+                
+                elif asset_data[0] == 'fuel':
+                    self.create_fuels(asset_data)
+                
+                elif asset_data[0] == 'prop':
+                    self.create_props(asset_data)
+                
+                else:
+                    print('unknown asset type {}'.format(asset_data[0]))
+            
+            else:
+                self.create_enemies()
+                self.create_props()
+                self.create_fuels()
+
+
+        ### FUEL ZERO###############################################
         # player is dead if fuel is zero 
         if self.player.fuel == 0:
             explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
@@ -430,6 +534,7 @@ class RiverRaid:
             e.update(action) 
             if not e.is_active():
                 del e   
+
         ############################################################ 
 
         ### GAME END ################################################# 
@@ -440,19 +545,48 @@ class RiverRaid:
         ############################################################ 
 
         ### UPDATE STATE ###########################################
-        entity_encoding =[[self.enemies, 2],
+        entity_encoding =[[self.enemies, 4],
                           [self.fuels, 3]]
-        self.state = self.observation_space.update(entity_encoding) 
+        # self.state = self.observation_space.update(entity_encoding)
+
+        # get the pixels from screen 
+        surface = self.pre_render()
+        tmp_arr = pg.surfarray.array3d(surface)
+
+        # crop 
+        tmp_arr = tmp_arr[100:tmp_arr.shape[0]-100, :, :]
+    
+        # resize the captured screen
+        tmp_arr = tmp_arr[::4, ::4]
+
+        # grayscale
+        self.state = np.mean(tmp_arr, axis=2).astype(np.uint8)
+
+        # reshape to be familiar for keras
+        # self.state = self.state.reshape(self.state.shape[0], self.state.shape[1])
+        
         ############################################################
 
-        return self.is_running, self.state
+        ### UPDATE REWARD ##########################################
+        self.reward += self.score_value - self.score_value_prev
+        self.score_value_prev = self.score_value
+
+        # reduce 500 point if the agent dies
+        if not self.player.alive:
+            self.reward = -501
+        
+        # add two points of reward for each step that the agent is alive
+        # elif self.is_running:
+        #     self.reward += 1
+        ############################################################
+
+        return self.state, self.reward, self.is_running
 
     '''
     reset all game metrics and variable 
     this is also called when the environment is initialized
     '''
     def reset(self):
-
         #### PLAYER INIT ########################################
         player_name = 'player'
         init_player_pos = [self.settings['width']/2, self.settings['height']-50]
@@ -462,7 +596,7 @@ class RiverRaid:
                         v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed'],
                         sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
                         'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
-                        capacity=3000, dec_factor=1, inc_factor=30, low_fuel=0.2)
+                        capacity=50000, dec_factor=1, inc_factor=30, low_fuel=0.2)
         ##########################################################
         
         #### BULLET INIT ########################################
@@ -473,8 +607,10 @@ class RiverRaid:
         ##########################################################
 
         #### WALL INIT ########################################
+        length = 1000
+        randomness = 1 if not self.random_assets else 0.8
         self.walls = Walls(scr=self.screen, color=(45,135,10), icon_list=[], normal=200, extended=100, channel=350, 
-                            max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000, randomness=0.8, 
+                            max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=length, randomness=randomness, 
                             v_speed=self.settings['player_speed'], block_size=self.settings['player_speed'])
         ##########################################################
 
@@ -489,24 +625,25 @@ class RiverRaid:
         crop_v = 0
         
         # entity-encoding lists
-        wall_encoding = [self.walls, 4]
-        player_encoding =[self.player, 1]
+        wall_encoding = [self.walls, 1]
+        player_encoding =[self.player, 2]
 
         # initialize the state space
         self.observation_space = ObservationSpace(w=self.settings['width'], 
                                                   h=self.settings['height'],
                                                   player=player_encoding,
-                                                  wall=wall_encoding, block_size=block_size,
-                                                  crop_h=crop_h, crop_v=crop_v)      
+                                                  wall=wall_encoding, enc_max=self.enc_max,
+                                                  block_size=block_size,
+                                                  crop_h=crop_h, crop_v=crop_v)     
         ##########################################################
 
         #### AGENT ###############################################
         self.agent = Agent()
         ##########################################################  
 
-        self.enemy_randomizer = 200
-        self.prop_randomizer = 200
-        self.fuel_randomizer = 200
+        self.enemy_randomizer = self.init_enemy_randomizer
+        self.prop_randomizer = self.init_prop_randomizer
+        self.fuel_randomizer = self.init_fuel_randomizer
         self.enemies = []
         self.props = []
         self.explosions = []
@@ -520,23 +657,22 @@ class RiverRaid:
         self.restart = False
         self.game_paused = False 
         self.score_value = 0   
-        self.observation_space.reset()    
+        self.score_value_prev = 0
+        self.reward = 0
+
+        return self.observation_space.state  
 
     '''
     render the game environment on screen
     this should not be called in every iteration in AI mode since it 
     slows down the trining process significantly
     '''
-    def render(self):
+    def pre_render(self):
         # setup screen color
         self.screen.fill(self.background)
 
         # render walls 
         self.walls.render()
-
-        # render all entities 
-        for p in self.props:
-            p.render()  
 
         for f in self.fuels:
             f.render()  
@@ -545,11 +681,20 @@ class RiverRaid:
             e.render()    
 
         self.player.render() 
-        self.bullet.render()   
+        self.bullet.render()  
+
+        surface = pg.display.get_surface() 
+
+        # render all entities 
+        for p in self.props:
+            p.render()  
 
         for e in self.explosions:
             e.render()
 
+        return surface
+
+    def render(self):
         # show game metrics
         self.show_score()
         self.show_lives()
@@ -564,6 +709,12 @@ class RiverRaid:
     NOTE: very slow!
     '''
     def discrete_render(self):
-        plt.imshow(np.transpose(self.state), cmap=self.cmap)
-        plt.draw() 
-        plt.pause(0.001)
+        # comment this if you want to use opencv to show processed state (recommended)
+        cv2.imshow('image', self.state)
+
+        # comment above and uncomment the following if you want to use matplotlib to 
+        # show the processed state (not recommended)
+        # state_reshaped = self.state.reshape(self.state.shape[0],self.state.shape[1])
+        # plt.imshow(np.transpose(state_reshaped), cmap=self.cmap)
+        # plt.draw() 
+        # plt.pause(0.001)

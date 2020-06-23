@@ -1,7 +1,7 @@
 import numpy as np 
 
 class ObservationSpace:
-    def __init__(self, w, h, player, wall, block_size=4, crop_h=200, crop_v=0):
+    def __init__(self, w, h, player, wall, enc_max=4, block_size=4, crop_h=200, crop_v=0):
         # game screen dimensions
         self.w = w
         self.h = h 
@@ -14,6 +14,9 @@ class ObservationSpace:
         # and its second element is the wall's encoding value
         self.wall = wall 
 
+        # maximum of encoding values. number of entities+2
+        # for example, if we have enemy and fuel, enc_size is 4
+        self.enc_max = enc_max    
         self.block_size = block_size
         self.crop_h = crop_h
         self.crop_v = crop_v 
@@ -28,7 +31,7 @@ class ObservationSpace:
     '''
     def reset(self):
         self.state = np.zeros([int((self.w-self.crop_h)/self.block_size), 
-                int(self.h/self.block_size)])
+                                int(self.h/self.block_size)], dtype=np.uint8)
 
     '''
     return the game state
@@ -40,10 +43,10 @@ class ObservationSpace:
 
     we consider 5+ different encoding values for each block which represent:
     empty             -> 0
-    player            -> 1
-    enemy             -> 2
+    wall              -> 1
+    player            -> 2
     fuel              -> 3
-    wall              -> 4
+    enemy             -> 4
     additional entity -> 5
 
     we crop pixles from the right and left of the screen since player cannot go there.
@@ -77,11 +80,8 @@ class ObservationSpace:
                 self.state[j][i] = self.wall[1]
         ############################################### 
 
-        #### 1D STATE #################################
-        # self.state_flat = self.state.flatten() 
-        ############################################### 
-
-        return self.state
+        self.state = self.state/self.enc_max
+        return self.state#, self.state_reshaped
 
     '''
     fill self.state with encoding values assigned to each asset 
@@ -102,4 +102,4 @@ class ObservationSpace:
                             int(self.h/self.block_size)-1)] = value
 
     def __str__(self):
-        return ('Discrete {}'.format(self.state.shape))
+        return ('Discrete {}'.format(self.n))

@@ -129,3 +129,8 @@ dmypy.json
 .pyre/
 
 .vscode/
+logs/
+trainings/
+trainings_backup/
+
+/tf
