@@ -8,10 +8,22 @@ pip install -r requirements.txt
 ```
 
 ## Run the game
+For the river raid game:
 ```
-python run_game.py
+python play_river_raid.py
 ```
-or 
+and for the covid raid game
 ```
 python covid_game.py
+```
+
+## Train an AI agent
+To train an AI agent to play river raid:
+```
+python train_river_raid.py
+```
+
+## Playback a trained model
+```
+python playback_river_raid.py
 ```
