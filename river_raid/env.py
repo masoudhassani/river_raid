@@ -22,6 +22,10 @@ class RiverRaidEnv(gym.Env):
                    back-and-forth steering. Starting, stopping and deliberate turns are free.
                  - death_penalty when the plane crashes or runs out of fuel
                  Points for ramming an enemy do not count as reward.
+    Fuel:        a full tank lasts fuel_capacity / 4 frames (default 1800 frames = 1 minute), and
+                 flying over a tank adds refuel_rate fuel per frame (~10 s of flight per tank).
+                 That makes fuel a real constraint, as in the Atari game: some tanks have to be
+                 used, the rest can be shot for points. (The human game keeps its 7 minute tank.)
     Episode:     ends when the plane is destroyed (one life), truncated after
                  max_episode_frames game frames.
     '''
@@ -31,7 +35,8 @@ class RiverRaidEnv(gym.Env):
                  max_episode_frames=54_000, reward_scale=0.01, survival_reward=0.01,
                  refuel_reward=0.15, refuel_below=0.4, reversal_penalty=0.05, reversal_window=4,
                  death_penalty=2.0, fuel_gauge=True, random_assets=True,
-                 enemy_spawn=160, prop_spawn=150, fuel_spawn=500, sound=False):
+                 enemy_spawn=160, prop_spawn=150, fuel_spawn=500, fuel_capacity=7200,
+                 refuel_rate=60, sound=False):
         assert render_mode is None or render_mode in self.metadata['render_modes']
         self.render_mode = render_mode
         self.frame_skip = frame_skip
@@ -53,7 +58,8 @@ class RiverRaidEnv(gym.Env):
         self.game = RiverRaid(preset='AI', render_mode='human' if render_mode == 'human' else None,
                               random=random_assets, init_enemy_spawn=enemy_spawn,
                               init_prop_spawn=prop_spawn, init_fuel_spawn=fuel_spawn,
-                              sound=sound, num_lives=1)
+                              sound=sound, num_lives=1, fuel_capacity=fuel_capacity,
+                              refuel_rate=refuel_rate)
 
         self.action_space = spaces.Discrete(len(ACTIONS))
         self.observation_space = spaces.Box(0, 255, (frame_stack, obs_size, obs_size), np.uint8)

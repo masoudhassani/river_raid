@@ -66,6 +66,8 @@ class Config:
     reversal_penalty: float = 0.05
     reversal_window: int = 4
     death_penalty: float = 2.0
+    fuel_capacity: int = 7200           # 1 minute of flight
+    refuel_rate: int = 60
 
     def env_kwargs(self):
         return dict(frame_skip=self.frame_skip, frame_stack=self.frame_stack, obs_size=self.obs_size,
@@ -73,7 +75,8 @@ class Config:
                     survival_reward=self.survival_reward, refuel_reward=self.refuel_reward,
                     refuel_below=self.refuel_below, reversal_penalty=self.reversal_penalty,
                     reversal_window=self.reversal_window,
-                    death_penalty=self.death_penalty)
+                    death_penalty=self.death_penalty, fuel_capacity=self.fuel_capacity,
+                    refuel_rate=self.refuel_rate)
 
     def network_kwargs(self):
         return dict(channels=tuple(int(c) for c in self.channels.split(',')), hidden=self.hidden)

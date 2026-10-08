@@ -39,13 +39,16 @@ class RiverRaid:
     background = (20, 50, 255)   # screen background color RGB
 
     def __init__(self, preset='Basic', render_mode=None, random=True, init_enemy_spawn=150,
-                 init_prop_spawn=150, init_fuel_spawn=500, sound=None, num_lives=None, seed=None):
+                 init_prop_spawn=150, init_fuel_spawn=500, sound=None, num_lives=None, seed=None,
+                 fuel_capacity=50000, refuel_rate=30):
 
         # spawn distances in pixel, lower means more assets are spawned
         self.enemy_spawn_distance = init_enemy_spawn
         self.prop_spawn_distance = init_prop_spawn
         self.fuel_spawn_distance = init_fuel_spawn
         self.random_assets = random
+        self.fuel_capacity = fuel_capacity   # the plane burns player_speed (4) fuel per frame
+        self.refuel_rate = refuel_rate       # fuel gained per frame over a fuel tank
         self.render_mode = render_mode
         self.rng = _random.Random(seed)
 
@@ -111,7 +114,7 @@ class RiverRaid:
                              sound_list=['media/sound/engine.wav', 'media/sound/engine-fast.wav',
                                          'media/sound/engine-slow.wav', 'media/sound/fuel-up.wav',
                                          'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
-                             capacity=50000, dec_factor=1, inc_factor=30, low_fuel=0.2, audio=self.audio)
+                             capacity=self.fuel_capacity, dec_factor=1, inc_factor=self.refuel_rate, low_fuel=0.2, audio=self.audio)
 
         #### BULLET ##############################################
         bullet_speed_factor = 5

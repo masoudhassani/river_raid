@@ -74,6 +74,7 @@ print(info['score'])
 | Observation | last 4 frames, 96x96 grayscale (`uint8`, shape `(4, 96, 96)`); the bottom 2 rows of each frame are a fuel gauge |
 | Actions | `NO_MOVE, LEFT, RIGHT, LEFT_SHOOT, RIGHT_SHOOT, SHOOT`, each repeated for 4 game frames |
 | Reward | +0.01 per frame alive; points from shooting / 100 (helicopter 0.6, ship 0.4, fuel tank 0.8); +0.15 per frame while refuelling below 40% fuel; -0.05 for reversing direction (left <-> right) within half a second; -2 on death. Ramming an enemy earns no reward |
+| Fuel | a full tank lasts 1 minute and each tank you fly over gives ~10 s, so some tanks must be used and the rest can be shot (`fuel_capacity`, `refuel_rate`; the human game keeps its 7 minute tank) |
 | Episode end | crash into a bank or an enemy, running out of fuel, or 30 minutes of game time (truncation) |
 
 All of these are constructor arguments of `RiverRaidEnv` (`frame_skip`, `frame_stack`, `obs_size`,
