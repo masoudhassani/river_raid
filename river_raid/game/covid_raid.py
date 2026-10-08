@@ -1,9 +1,18 @@
-import pygame as pg
-import yaml
+"""Covid Raid (2020): a human-only spin-off of River Raid."""
 import random
 import time
-from modules import InitDeck
-from modules import Entity, Player, Enemy, Bullet, Walls, ActionSpace
+
+import pygame as pg
+
+from ..assets import Audio, asset_path
+from ..settings import load_settings
+from .actions import ActionSpace
+from .bullet import Bullet
+from .enemy import Enemy
+from .entity import Entity
+from .player import Player
+from .walls import Walls
+
 
 class CovidRaid:
     def __init__(self, preset='Basic', ai_agent=False, init_enemy_spawn=20, init_people_spawn=20,
@@ -16,13 +25,12 @@ class CovidRaid:
         self.fuel_spawn_distance = init_fuel_spawn
         self.ai_agent = ai_agent
 
-        # initialize the pygame library
-        pg.mixer.pre_init(16000, -16, 5, 640)
-        pg.mixer.init()
-        # play backgraound music
-        pg.mixer.music.load('media/covid/sound/outside.wav')
-        pg.mixer.music.play(-1)
-        # pg.mixer.set_num_channels(10)
+        # load game settings
+        self.settings = load_settings(preset)
+
+        # initialize the pygame library and play background music
+        self.audio = Audio(enabled=self.settings['sound'])
+        self.audio.music('media/covid/sound/outside.wav')
         pg.init()
 
         # initialize clock
@@ -33,10 +41,6 @@ class CovidRaid:
         self.score_value = 0
         self.font_small = pg.font.Font('freesansbold.ttf', 16)
         self.font_large = pg.font.Font('freesansbold.ttf', 48)
-
-        # load game settings 
-        loader = InitDeck(preset=preset)
-        self.settings = loader.load()
 
         # hard coded game settings
         player_name = 'player'
@@ -59,7 +63,7 @@ class CovidRaid:
         # setup the game display and title
         self.screen = pg.display.set_mode((self.settings['width'], self.settings['height']))
         pg.display.set_caption('Covid Raid 2020')
-        icon = pg.image.load('media/covid/icon/virus.png')
+        icon = pg.image.load(asset_path('media/covid/icon/virus.png'))
         pg.display.set_icon(icon)
         self.background = ((100, 89, 89))   # screen background color RGB 
 
@@ -71,13 +75,13 @@ class CovidRaid:
                         cg=self.cg['player'], pos=init_player_pos, icon_list=['media/covid/icon/elham.png','media/covid/icon/virus.png'], 
                         v_speed=self.settings['player_speed'], h_speed=self.settings['player_speed'],
                         sound_list=['media/covid/sound/walking.wav', 'media/sound/engine-fast.wav', 'media/sound/engine-slow.wav',
-                        'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'],
+                        'media/sound/fuel-up.wav', 'media/sound/fuel-low.wav', 'media/sound/tank-filled.wav'], audio=self.audio,
                         capacity=20000, dec_factor=1, inc_factor=100, low_fuel=0.2)
 
         self.bullet = Bullet(scr=self.screen, name='bullet', ent_type='bullet', 
                         cg=self.cg['bullet'], pos=init_bullet_pos, icon_list=['media/covid/icon/mask.png'], 
                         v_speed=self.settings['player_speed']*bullet_speed_factor, h_speed=0, 
-                        player_cg=self.cg['player'], sound_list=['media/covid/sound/bullet.wav']) 
+                        player_cg=self.cg['player'], sound_list=['media/covid/sound/bullet.wav'], audio=self.audio) 
 
         # setup walls 
         self.walls = Walls(scr=self.screen, color=(45,135,10), icon_list=[], normal=150, extended=100, channel=200, 
@@ -120,7 +124,7 @@ class CovidRaid:
 
         if (self.travel_distance-self.last_enemey_spawn) > self.randomizer:
             self.last_enemey_spawn = self.travel_distance
-            self.randomizer = random.randint(self.enemy_spawn_distance*0.5, self.enemy_spawn_distance*1.5)
+            self.randomizer = random.randint(int(self.enemy_spawn_distance*0.5), int(self.enemy_spawn_distance*1.5))
 
             enemy_name = random.choice(self.enemy_names) 
 
@@ -193,7 +197,7 @@ class CovidRaid:
 
         if (self.travel_distance-self.last_people_spawn) > self.randomizer:
             self.last_people_spawn = self.travel_distance
-            self.randomizer = random.randint(self.people_spawn_distance*0.5, self.people_spawn_distance*0.8)
+            self.randomizer = random.randint(int(self.people_spawn_distance*0.5), int(self.people_spawn_distance*0.8))
             people_name = random.choice(self.people_names) 
 
             # get the wall coordinate at y=0 for spawning 
@@ -222,7 +226,7 @@ class CovidRaid:
 
         if (self.travel_distance-self.last_fuel_spawn) > self.fuel_randomizer:
             self.last_fuel_spawn = self.travel_distance
-            self.fuel_randomizer = random.randint(self.fuel_spawn_distance*0.6, self.fuel_spawn_distance*1.5)
+            self.fuel_randomizer = random.randint(int(self.fuel_spawn_distance*0.6), int(self.fuel_spawn_distance*1.5))
             # get the wall coordinate at y=0 for spawning 
             wall_1 = self.walls.return_wall_coordinate(0)
             # get the wall coordinate at the bottom of CG for spawning 
@@ -261,7 +265,7 @@ class CovidRaid:
                     explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
                         cg=self.cg['player'], pos=[(e.pos[0]+self.player.pos[0])/2,(e.pos[1]+self.player.pos[1])/2], 
                         icon_list=['media/covid/icon/virus.png'], v_speed=self.settings['player_speed'], 
-                        h_speed=0, life_span=100, sound_list=['media/covid/sound/explosion.wav']) 
+                        h_speed=0, life_span=100, sound_list=['media/covid/sound/explosion.wav'], audio=self.audio) 
 
                     self.explosions.append(explosion)  
                     if e.name == 'helicopter':
@@ -333,7 +337,7 @@ class CovidRaid:
                 paused = False
 
     def splash_screen(self):
-        intro_image = pg.image.load('media/covid/icon/intro.png')
+        intro_image = pg.image.load(asset_path('media/covid/icon/intro.png'))
         self.screen.blit(intro_image, (0,0))
         pg.display.update()
         timer = 0
@@ -395,8 +399,6 @@ class CovidRaid:
             if self.game_paused:
                 self.pause_game()
         
-        else:
-            self.action_space.available_actions(condition=self.bullet.state == 'fired')
         ############################################################  
 
         ### COLLISIONS #################################################
@@ -426,7 +428,7 @@ class CovidRaid:
             explosion = Entity(scr=self.screen, name='explosion', ent_type='explosion', 
                 cg=self.cg['player'], pos=[self.player.pos[0],self.player.pos[1]], 
                 icon_list=['media/icon/explosion1.png'], v_speed=self.settings['player_speed'], 
-                h_speed=0, life_span=100, sound_list=['media/sound/explosion.wav']) 
+                h_speed=0, life_span=100, sound_list=['media/sound/explosion.wav'], audio=self.audio) 
             
             self.explosions.append(explosion)            
             self.player.alive = False

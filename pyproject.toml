@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "river-raid"
+version = "2.0.0"
+description = "A recreation of Atari's River Raid in pygame, with a Gymnasium environment and a PPO agent"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "pygame-ce>=2.5",
+    "gymnasium>=1.0",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.4",
+    "tensorboard>=2.16",
+    "imageio>=2.34",
+]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["river_raid*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,10 +1,11 @@
-from modules import Entity
-import pygame as pg
-from pygame import mixer
+from .entity import Entity
+
+BULLET_CHANNEL = 6
+
 
 class Bullet(Entity):
 
-    def update(self, action, player_pos): 
+    def update(self, action, player_pos):
         # handle movements
         if self.state == 'fired':
             self.fire()
@@ -15,35 +16,25 @@ class Bullet(Entity):
         if 'SHOOT' in action and self.state == 'ready':
             self.state = 'fired'
 
-        # check collision with boundaries 
-        self.check_walls()
-
-        # check if bullet is not in screen, it will be removed from memory 
+        # check if the bullet left the screen
         self.check_state()
 
     def fire(self):
-        # play the explosion sound 
         if not self.sound_played:
-            pg.mixer.Channel(6).play(self.sounds[0])
-            # self.sound.play()
+            self.audio.play(BULLET_CHANNEL, self.sounds[0])
             self.sound_played = True
 
         self.pos[1] -= self.current_speed_v
 
-    def check_walls(self):
-        pass
-
     # check if the fired bullet is still in the screen
     def check_state(self):
         if self.pos[1] < 0:
-            self.state = 'ready'
-            self.sound_played = False
+            self.reload()
 
     def reload(self):
         self.state = 'ready'
         self.sound_played = False
 
     def render(self):
-        # draw
         if self.state == 'fired':
             self.screen.blit(self.icons[0], self.pos)
