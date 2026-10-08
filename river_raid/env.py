@@ -13,17 +13,23 @@ class RiverRaidEnv(gym.Env):
                  are overwritten with a fuel gauge, so the agent knows how much fuel is left.
     Actions:     NO_MOVE, LEFT, RIGHT, LEFT_SHOOT, RIGHT_SHOOT, SHOOT
                  each action is repeated for `frame_skip` game frames.
-    Reward:      (game score delta) * reward_scale
-                 + refuel_reward per frame while refueling a tank that is not full
+    Reward:      (points from shooting enemies and fuel tanks) * reward_scale
+                 + survival_reward per frame alive (the game never gets harder, so a
+                   good agent should be able to fly forever)
+                 + refuel_reward per frame while refueling with less than refuel_below fuel
+                 - steer_penalty each time the horizontal movement changes (left / none / right),
+                   which discourages twitchy, unhuman-like steering
                  - death_penalty when the plane crashes or runs out of fuel
+                 Points for ramming an enemy do not count as reward.
     Episode:     ends when the plane is destroyed (one life), truncated after
                  max_episode_frames game frames.
     '''
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': RiverRaid.FPS}
 
     def __init__(self, render_mode=None, frame_skip=4, frame_stack=4, obs_size=96,
-                 max_episode_frames=54_000, reward_scale=0.01, refuel_reward=0.15,
-                 death_penalty=1.0, fuel_gauge=True, random_assets=True,
+                 max_episode_frames=54_000, reward_scale=0.01, survival_reward=0.01,
+                 refuel_reward=0.15, refuel_below=0.4, steer_penalty=0.02,
+                 death_penalty=2.0, fuel_gauge=True, random_assets=True,
                  enemy_spawn=160, prop_spawn=150, fuel_spawn=500, sound=False):
         assert render_mode is None or render_mode in self.metadata['render_modes']
         self.render_mode = render_mode
@@ -32,8 +38,12 @@ class RiverRaidEnv(gym.Env):
         self.obs_size = (obs_size, obs_size)
         self.max_episode_frames = max_episode_frames
         self.reward_scale = reward_scale
+        self.survival_reward = survival_reward
         self.refuel_reward = refuel_reward
+        self.refuel_below = refuel_below
+        self.steer_penalty = steer_penalty
         self.death_penalty = death_penalty
+        self._steer = 0
         self.fuel_gauge = fuel_gauge
 
         self.game = RiverRaid(preset='AI', render_mode='human' if render_mode == 'human' else None,
@@ -66,6 +76,7 @@ class RiverRaidEnv(gym.Env):
         super().reset(seed=seed)
         self.game.reset(seed=int(self.np_random.integers(2**31)))
         self._frames[:] = self._frame()
+        self._steer = 0
         if self.render_mode == 'human':
             self.game.render()
         return self._frames.copy(), self._info()
@@ -73,12 +84,17 @@ class RiverRaidEnv(gym.Env):
     def step(self, action):
         game = self.game
         action_name = ACTIONS[int(action)]
-        reward = 0.0
+        steer = ('RIGHT' in action_name) - ('LEFT' in action_name)
+        steer_changed = steer != self._steer
+        reward = -self.steer_penalty if steer_changed else 0.0
+        self._steer = steer
         for _ in range(self.frame_skip):
-            score = game.score_value
+            points = game.score_value - game.ram_points
             game.step(action_name)
-            reward += (game.score_value - score) * self.reward_scale
-            if game.refueling and game.player.fuel < game.player.capacity:
+            reward += (game.score_value - game.ram_points - points) * self.reward_scale
+            if game.player.alive:
+                reward += self.survival_reward
+            if game.refueling and game.player.fuel < self.refuel_below * game.player.capacity:
                 reward += self.refuel_reward
             if self.render_mode == 'human':
                 game.render()
@@ -93,7 +109,9 @@ class RiverRaidEnv(gym.Env):
 
         self._frames[:-1] = self._frames[1:]
         self._frames[-1] = self._frame()
-        return self._frames.copy(), reward, terminated, truncated, self._info()
+        info = self._info()
+        info['steer_changed'] = steer_changed
+        return self._frames.copy(), reward, terminated, truncated, info
 
     def render(self):
         if self.render_mode == 'rgb_array':

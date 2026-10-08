@@ -50,6 +50,7 @@ network runs on the GPU. Watch `charts/SPS`: if the GPU is underused, raise `--n
 ## Watch a trained agent
 ```
 python watch.py runs/<run>/best.pt                           # opens the game window
+python watch.py runs/<run>/best.pt --sample                  # sample actions instead of the most likely one
 python watch.py runs/<run>/best.pt --record media/agent.gif  # record a gif instead
 ```
 
@@ -72,11 +73,19 @@ print(info['score'])
 |---|---|
 | Observation | last 4 frames, 96x96 grayscale (`uint8`, shape `(4, 96, 96)`); the bottom 2 rows of each frame are a fuel gauge |
 | Actions | `NO_MOVE, LEFT, RIGHT, LEFT_SHOOT, RIGHT_SHOOT, SHOOT`, each repeated for 4 game frames |
-| Reward | game score / 100 (helicopter 0.6, ship 0.4, fuel tank 0.8), +0.15 per frame while refuelling a tank that is not full, -1 on death |
+| Reward | +0.01 per frame alive; points from shooting / 100 (helicopter 0.6, ship 0.4, fuel tank 0.8); +0.15 per frame while refuelling below 40% fuel; -0.02 per steering change (left / none / right); -2 on death. Ramming an enemy earns no reward |
 | Episode end | crash into a bank or an enemy, running out of fuel, or 30 minutes of game time (truncation) |
 
-All of these are constructor arguments of `RiverRaidEnv` (`frame_skip`, `frame_stack`,
-`obs_size`, `reward_scale`, `refuel_reward`, `death_penalty`, `max_episode_frames`, ...).
+All of these are constructor arguments of `RiverRaidEnv` (`frame_skip`, `frame_stack`, `obs_size`,
+`survival_reward`, `reward_scale`, `refuel_reward`, `refuel_below`, `steer_penalty`, `death_penalty`,
+`max_episode_frames`, ...) and options of `train.py`.
+
+Why this reward: the game never gets harder, so a good agent should be able to fly forever, and
+staying alive is rewarded directly. An earlier version paid for every frame spent over a fuel tank
+and counted points for ramming enemies; an analysis of that agent showed 29 of 30 deaths were
+collisions with enemies, it never dropped below 77% fuel, and almost 40% of its reward came from
+chasing fuel tanks it did not need. The steering penalty targets the twitchy, non-human
+"short stroke" movement that RL agents tend to learn when changing direction is free.
 
 ## The learning method
 PPO ([Schulman et al. 2017](https://arxiv.org/abs/1707.06347)) with the IMPALA ResNet encoder

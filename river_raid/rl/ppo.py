@@ -37,13 +37,14 @@ class Config:
     num_steps: int = 128                # rollout length per env and update
     lr: float = 2.5e-4
     anneal_lr: bool = True
-    gamma: float = 0.99
+    gamma: float = 0.995                # ~200 agent steps (~27 s of game) planning horizon
     gae_lambda: float = 0.95
     num_minibatches: int = 4
     update_epochs: int = 3
     clip_coef: float = 0.1
     clip_vloss: bool = True
     ent_coef: float = 0.01
+    ent_coef_final: float = 0.001       # entropy bonus is annealed to this, for a more decisive policy
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
     target_kl: float = 0.0              # early stop the update epochs above this KL (0: off)
@@ -59,13 +60,18 @@ class Config:
     obs_size: int = 96
     max_episode_frames: int = 54_000    # 30 minutes of game play at 30 FPS
     reward_scale: float = 0.01
+    survival_reward: float = 0.01
     refuel_reward: float = 0.15
-    death_penalty: float = 1.0
+    refuel_below: float = 0.4
+    steer_penalty: float = 0.02
+    death_penalty: float = 2.0
 
     def env_kwargs(self):
         return dict(frame_skip=self.frame_skip, frame_stack=self.frame_stack, obs_size=self.obs_size,
                     max_episode_frames=self.max_episode_frames, reward_scale=self.reward_scale,
-                    refuel_reward=self.refuel_reward, death_penalty=self.death_penalty)
+                    survival_reward=self.survival_reward, refuel_reward=self.refuel_reward,
+                    refuel_below=self.refuel_below, steer_penalty=self.steer_penalty,
+                    death_penalty=self.death_penalty)
 
     def network_kwargs(self):
         return dict(channels=tuple(int(c) for c in self.channels.split(',')), hidden=self.hidden)
@@ -206,8 +212,10 @@ def train(cfg: Config):
     start_time, start_step = time.time(), global_step
     try:
         for update in range(start_update, num_updates + 1):
+            progress = (update - 1.0) / num_updates
             if cfg.anneal_lr:
-                optimizer.param_groups[0]['lr'] = cfg.lr * (1.0 - (update - 1.0) / num_updates)
+                optimizer.param_groups[0]['lr'] = cfg.lr * (1.0 - progress)
+            ent_coef = cfg.ent_coef + (cfg.ent_coef_final - cfg.ent_coef) * progress
 
             ### COLLECT A ROLLOUT ##############################################
             for step in range(cfg.num_steps):
@@ -242,6 +250,7 @@ def train(cfg: Config):
                     writer.add_scalar('episode/minutes_survived', ep['frames'] / 30 / 60, global_step)
                     writer.add_scalar('episode/kills', ep['kills'], global_step)
                     writer.add_scalar('episode/travel_km', ep['travel'] / 1000, global_step)
+                    writer.add_scalar('episode/steering_changes_per_s', ep['steer_changes'] / (ep['frames'] / 30), global_step)
 
             ### GENERALIZED ADVANTAGE ESTIMATION ###############################
             with torch.no_grad(), torch.autocast('cuda', torch.bfloat16, enabled=use_bf16):
@@ -288,7 +297,7 @@ def train(cfg: Config):
                         v_loss = 0.5 * ((newvalue - b_returns[mb])**2).mean()
 
                     entropy_loss = entropy.mean()
-                    loss = pg_loss - cfg.ent_coef * entropy_loss + cfg.vf_coef * v_loss
+                    loss = pg_loss - ent_coef * entropy_loss + cfg.vf_coef * v_loss
 
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()

@@ -16,7 +16,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('checkpoint')
     parser.add_argument('--episodes', type=int, default=3)
-    parser.add_argument('--greedy', action='store_true', help='always take the most likely action')
+    parser.add_argument('--sample', action='store_true',
+                        help='sample actions from the policy instead of always taking the most likely one '
+                             '(more random, twitchier steering)')
     parser.add_argument('--record', default='', help='save a .gif/.mp4 instead of opening a window')
     parser.add_argument('--video-fps', type=float, default=15,
                         help='one video frame per agent step (4 game frames), 15 fps = 2x real time')
@@ -36,7 +38,7 @@ def main():
         done = False
         while not done:
             with torch.no_grad():
-                action, _, _ = agent.act(torch.from_numpy(obs).unsqueeze(0).to(device), greedy=args.greedy)
+                action, _, _ = agent.act(torch.from_numpy(obs).unsqueeze(0).to(device), greedy=not args.sample)
             obs, _, terminated, truncated, info = env.step(action.item())
             done = terminated or truncated
             if args.record:

@@ -143,6 +143,7 @@ class RiverRaid:
         self.score_value = 0
         self.refueling = False   # True while the player is over a fuel tank
         self.kills = 0
+        self.ram_points = 0      # points earned by crashing into enemies (not shooting them)
         self.frame = 0
 
     def _spawn(self, name, ent_type, pos, h_speed=0, icon=None):
@@ -266,6 +267,7 @@ class RiverRaid:
             elif self.player.alive and self.player.overlaps(e):
                 e.alive = False
                 self.score_value += self.points[e.name]
+                self.ram_points += self.points[e.name]
                 self.kill_player([(e.pos[0]+self.player.pos[0])/2, (e.pos[1]+self.player.pos[1])/2])
 
     '''

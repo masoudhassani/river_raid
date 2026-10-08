@@ -24,17 +24,20 @@ class EnvGroup:
         self.seeds = list(seeds)
         self.returns = np.zeros(len(seeds))
         self.lengths = np.zeros(len(seeds), dtype=np.int64)
+        self.steer_changes = np.zeros(len(seeds), dtype=np.int64)
 
     def reset(self, obs):
         for i, (env, seed) in enumerate(zip(self.envs, self.seeds)):
             obs[i], _ = env.reset(seed=seed)
         self.returns[:] = 0
         self.lengths[:] = 0
+        self.steer_changes[:] = 0
 
     def step(self, actions, obs, rewards, terminated, truncated, offset=0):
         finished = []
         for i, (env, action) in enumerate(zip(self.envs, actions)):
             o, r, term, trunc, info = env.step(action)
+            self.steer_changes[i] += info['steer_changed']
             self.returns[i] += r
             self.lengths[i] += 1
             if term or trunc:
@@ -42,10 +45,12 @@ class EnvGroup:
                                  'steps': int(self.lengths[i]), 'score': info['score'],
                                  'kills': info['kills'], 'travel': info['travel'],
                                  'frames': info['frames'], 'truncated': bool(trunc),
+                                 'steer_changes': int(self.steer_changes[i]),
                                  # needed to bootstrap the value of truncated episodes
                                  'final_obs': o if trunc else None})
                 self.returns[i] = 0
                 self.lengths[i] = 0
+                self.steer_changes[i] = 0
                 o, _ = env.reset()
             obs[i], rewards[i], terminated[i], truncated[i] = o, r, term, trunc
         return finished

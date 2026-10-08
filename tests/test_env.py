@@ -36,14 +36,14 @@ def test_seeding_is_deterministic():
 
 
 def test_crashing_into_the_bank_terminates_with_penalty():
-    env = RiverRaidEnv(death_penalty=1.0)
+    env = RiverRaidEnv(death_penalty=2.0)
     env.reset(seed=0)
     for _ in range(500):
         _, reward, terminated, truncated, _ = env.step(1)   # keep flying left
         if terminated:
             break
     assert terminated and not truncated
-    assert reward <= -1.0
+    assert reward < -1.9
 
 
 def test_truncation():
@@ -73,3 +73,26 @@ def test_game_runs(random_assets):
         if not game.is_running:
             break
     assert game.frame > 0
+
+
+def test_reward_terms():
+    env = RiverRaidEnv(survival_reward=0.01, steer_penalty=0.02, frame_skip=4)
+    env.reset(seed=0)
+    _, reward, *_ = env.step(0)                 # fly straight, nothing happens: survival only
+    assert reward == pytest.approx(4 * 0.01)
+    _, reward, *_ = env.step(1)                 # start steering left: survival - steer penalty
+    assert reward == pytest.approx(4 * 0.01 - 0.02)
+    _, reward, _, _, info = env.step(1)         # keep steering left: no penalty
+    assert reward == pytest.approx(4 * 0.01) and not info['steer_changed']
+
+
+def test_ramming_an_enemy_is_not_rewarded():
+    env = RiverRaidEnv(death_penalty=2.0, frame_skip=1)
+    env.reset(seed=0)
+    game = env.game
+    enemy = game._spawn('helicopter', 'enemy', [game.player.pos[0], game.player.pos[1] - 10])
+    enemy.set_walls(game.walls.return_wall_coordinate(0))
+    game.enemies.append(enemy)
+    _, reward, terminated, _, info = env.step(0)
+    assert terminated and info['score'] == 60       # the game still shows the points
+    assert reward == pytest.approx(-2.0)            # but the agent only gets the death penalty
