@@ -55,3 +55,13 @@ def test_train_and_reload(tmp_path):
     assert loaded_cfg.channels == '8,8,8'
     action, _, _ = agent.act(torch.zeros((1, 4, 96, 96), dtype=torch.uint8), greedy=True)
     assert 0 <= action.item() < 6
+
+
+def test_resume_uses_checkpoint_architecture(tmp_path):
+    common = ['--num-envs', '4', '--num-steps', '32', '--num-workers', '0', '--log-dir', str(tmp_path),
+              '--device', 'cpu', '--save-every', '1']
+    run_dir = train(parse_args(['--total-steps', '128', '--run-name', 'a', '--channels', '8,8,8', *common]))
+    # resume without repeating --channels
+    train(parse_args(['--total-steps', '256', '--resume', f'{run_dir}/latest.pt', *common]))
+    ckpt = torch.load(f'{run_dir}/latest.pt', weights_only=False)
+    assert ckpt['config']['channels'] == '8,8,8' and ckpt['global_step'] == 256

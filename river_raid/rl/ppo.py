@@ -144,6 +144,10 @@ def train(cfg: Config):
     use_bf16 = cfg.bf16 and device.type == 'cuda'
 
     ckpt = torch.load(cfg.resume, map_location=device, weights_only=False) if cfg.resume else None
+    if ckpt:
+        # the network and the environment must match the checkpoint, whatever the command line says
+        for key in ('channels', 'hidden', *cfg.env_kwargs()):
+            setattr(cfg, key, ckpt['config'][key])
     run_name = cfg.run_name or (os.path.basename(os.path.dirname(cfg.resume)) if ckpt else time.strftime('ppo_%Y%m%d_%H%M%S'))
     run_dir = os.path.join(cfg.log_dir, run_name)
     os.makedirs(run_dir, exist_ok=True)
