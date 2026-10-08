@@ -73,19 +73,21 @@ print(info['score'])
 |---|---|
 | Observation | last 4 frames, 96x96 grayscale (`uint8`, shape `(4, 96, 96)`); the bottom 2 rows of each frame are a fuel gauge |
 | Actions | `NO_MOVE, LEFT, RIGHT, LEFT_SHOOT, RIGHT_SHOOT, SHOOT`, each repeated for 4 game frames |
-| Reward | +0.01 per frame alive; points from shooting / 100 (helicopter 0.6, ship 0.4, fuel tank 0.8); +0.15 per frame while refuelling below 40% fuel; -0.02 per steering change (left / none / right); -2 on death. Ramming an enemy earns no reward |
+| Reward | +0.01 per frame alive; points from shooting / 100 (helicopter 0.6, ship 0.4, fuel tank 0.8); +0.15 per frame while refuelling below 40% fuel; -0.05 for reversing direction (left <-> right) within half a second; -2 on death. Ramming an enemy earns no reward |
 | Episode end | crash into a bank or an enemy, running out of fuel, or 30 minutes of game time (truncation) |
 
 All of these are constructor arguments of `RiverRaidEnv` (`frame_skip`, `frame_stack`, `obs_size`,
-`survival_reward`, `reward_scale`, `refuel_reward`, `refuel_below`, `steer_penalty`, `death_penalty`,
+`survival_reward`, `reward_scale`, `refuel_reward`, `refuel_below`, `reversal_penalty`, `reversal_window`, `death_penalty`,
 `max_episode_frames`, ...) and options of `train.py`.
 
 Why this reward: the game never gets harder, so a good agent should be able to fly forever, and
 staying alive is rewarded directly. An earlier version paid for every frame spent over a fuel tank
 and counted points for ramming enemies; an analysis of that agent showed 29 of 30 deaths were
 collisions with enemies, it never dropped below 77% fuel, and almost 40% of its reward came from
-chasing fuel tanks it did not need. The steering penalty targets the twitchy, non-human
-"short stroke" movement that RL agents tend to learn when changing direction is free.
+chasing fuel tanks it did not need. The reversal penalty targets the twitchy, non-human
+"short stroke" back-and-forth movement that RL agents tend to learn when changing direction is free.
+It deliberately does not charge for starting or stopping: a version that penalized every steering
+change taught the agent to never steer at all and just sit in the middle of the river shooting.
 
 ## The learning method
 PPO ([Schulman et al. 2017](https://arxiv.org/abs/1707.06347)) with the IMPALA ResNet encoder

@@ -76,14 +76,17 @@ def test_game_runs(random_assets):
 
 
 def test_reward_terms():
-    env = RiverRaidEnv(survival_reward=0.01, steer_penalty=0.02, frame_skip=4)
+    env = RiverRaidEnv(survival_reward=0.01, reversal_penalty=0.05, reversal_window=4, frame_skip=1)
     env.reset(seed=0)
-    _, reward, *_ = env.step(0)                 # fly straight, nothing happens: survival only
-    assert reward == pytest.approx(4 * 0.01)
-    _, reward, *_ = env.step(1)                 # start steering left: survival - steer penalty
-    assert reward == pytest.approx(4 * 0.01 - 0.02)
-    _, reward, _, _, info = env.step(1)         # keep steering left: no penalty
-    assert reward == pytest.approx(4 * 0.01) and not info['steer_changed']
+    alive = 0.01
+    assert env.step(0)[1] == pytest.approx(alive)            # fly straight: survival only
+    assert env.step(1)[1] == pytest.approx(alive)            # start steering left: free
+    assert env.step(1)[1] == pytest.approx(alive)            # keep steering left: free
+    assert env.step(0)[1] == pytest.approx(alive)            # stop: free
+    assert env.step(2)[1] == pytest.approx(alive - 0.05)     # quick left -> right reversal: penalized
+    for _ in range(5):
+        env.step(0)
+    assert env.step(1)[1] == pytest.approx(alive)            # deliberate turn after a pause: free
 
 
 def test_ramming_an_enemy_is_not_rewarded():

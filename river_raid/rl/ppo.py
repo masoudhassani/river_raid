@@ -63,14 +63,16 @@ class Config:
     survival_reward: float = 0.01
     refuel_reward: float = 0.15
     refuel_below: float = 0.4
-    steer_penalty: float = 0.02
+    reversal_penalty: float = 0.05
+    reversal_window: int = 4
     death_penalty: float = 2.0
 
     def env_kwargs(self):
         return dict(frame_skip=self.frame_skip, frame_stack=self.frame_stack, obs_size=self.obs_size,
                     max_episode_frames=self.max_episode_frames, reward_scale=self.reward_scale,
                     survival_reward=self.survival_reward, refuel_reward=self.refuel_reward,
-                    refuel_below=self.refuel_below, steer_penalty=self.steer_penalty,
+                    refuel_below=self.refuel_below, reversal_penalty=self.reversal_penalty,
+                    reversal_window=self.reversal_window,
                     death_penalty=self.death_penalty)
 
     def network_kwargs(self):

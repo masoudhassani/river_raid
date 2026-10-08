@@ -17,8 +17,9 @@ class RiverRaidEnv(gym.Env):
                  + survival_reward per frame alive (the game never gets harder, so a
                    good agent should be able to fly forever)
                  + refuel_reward per frame while refueling with less than refuel_below fuel
-                 - steer_penalty each time the horizontal movement changes (left / none / right),
-                   which discourages twitchy, unhuman-like steering
+                 - reversal_penalty when the plane reverses direction (left <-> right) within
+                   reversal_window steps of its last move, which discourages twitchy, unhuman-like
+                   back-and-forth steering. Starting, stopping and deliberate turns are free.
                  - death_penalty when the plane crashes or runs out of fuel
                  Points for ramming an enemy do not count as reward.
     Episode:     ends when the plane is destroyed (one life), truncated after
@@ -28,7 +29,7 @@ class RiverRaidEnv(gym.Env):
 
     def __init__(self, render_mode=None, frame_skip=4, frame_stack=4, obs_size=96,
                  max_episode_frames=54_000, reward_scale=0.01, survival_reward=0.01,
-                 refuel_reward=0.15, refuel_below=0.4, steer_penalty=0.02,
+                 refuel_reward=0.15, refuel_below=0.4, reversal_penalty=0.05, reversal_window=4,
                  death_penalty=2.0, fuel_gauge=True, random_assets=True,
                  enemy_spawn=160, prop_spawn=150, fuel_spawn=500, sound=False):
         assert render_mode is None or render_mode in self.metadata['render_modes']
@@ -41,9 +42,12 @@ class RiverRaidEnv(gym.Env):
         self.survival_reward = survival_reward
         self.refuel_reward = refuel_reward
         self.refuel_below = refuel_below
-        self.steer_penalty = steer_penalty
+        self.reversal_penalty = reversal_penalty
+        self.reversal_window = reversal_window
         self.death_penalty = death_penalty
-        self._steer = 0
+        self._steer = 0           # current horizontal movement: -1 left, 0 none, 1 right
+        self._last_dir = 0        # direction of the last move
+        self._since_move = 0      # agent steps since the last move
         self.fuel_gauge = fuel_gauge
 
         self.game = RiverRaid(preset='AI', render_mode='human' if render_mode == 'human' else None,
@@ -76,7 +80,7 @@ class RiverRaidEnv(gym.Env):
         super().reset(seed=seed)
         self.game.reset(seed=int(self.np_random.integers(2**31)))
         self._frames[:] = self._frame()
-        self._steer = 0
+        self._steer = self._last_dir = self._since_move = 0
         if self.render_mode == 'human':
             self.game.render()
         return self._frames.copy(), self._info()
@@ -86,7 +90,13 @@ class RiverRaidEnv(gym.Env):
         action_name = ACTIONS[int(action)]
         steer = ('RIGHT' in action_name) - ('LEFT' in action_name)
         steer_changed = steer != self._steer
-        reward = -self.steer_penalty if steer_changed else 0.0
+        reward = 0.0
+        if steer:
+            if steer == -self._last_dir and self._since_move <= self.reversal_window:
+                reward -= self.reversal_penalty
+            self._last_dir, self._since_move = steer, 0
+        else:
+            self._since_move += 1
         self._steer = steer
         for _ in range(self.frame_skip):
             points = game.score_value - game.ram_points
