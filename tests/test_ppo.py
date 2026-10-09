@@ -75,3 +75,15 @@ def test_init_from_starts_a_new_run_with_given_weights(tmp_path):
                                '--init-from', f'{first}/latest.pt', *common]))
     ckpt = torch.load(f'{second}/latest.pt', weights_only=False)
     assert ckpt['global_step'] == 32 and ckpt['config']['escape_penalty'] == 0.5
+
+
+def test_committed_model_plays():
+    from river_raid.env import RiverRaidEnv
+    agent, cfg = load_agent('models/hunter.pt')
+    env = RiverRaidEnv(**cfg.env_kwargs())
+    obs, _ = env.reset(seed=0)
+    for _ in range(50):
+        action, _, _ = agent.act(torch.from_numpy(obs).unsqueeze(0), greedy=True)
+        obs, _, terminated, truncated, info = env.step(action.item())
+        assert not (terminated or truncated)
+    assert cfg.obs_style == 'clean'
