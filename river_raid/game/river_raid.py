@@ -11,7 +11,7 @@ from .bullet import Bullet
 from .enemy import Enemy
 from .entity import Entity
 from .player import Player
-from .walls import Walls
+from .walls import River
 
 
 class RiverRaid:
@@ -124,10 +124,11 @@ class RiverRaid:
                              player_cg=self.cg['player'], sound_list=['media/sound/bullet.wav'], audio=self.audio)
 
         #### WALLS ###############################################
-        self.walls = Walls(scr=self.screen, color=(45, 135, 10), icon_list=[], normal=200, extended=100, channel=350,
-                           max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000,
-                           randomness=0.8 if self.random_assets else 1,
-                           v_speed=speed, block_size=speed, rng=self.rng)
+        # wide stretches (400 px of water) and 200 px long channels (100 px of water), joined by
+        # 45 degree ramps; the deterministic game uses a fixed spacing
+        self.walls = River(scr=self.screen, color=(45, 135, 10), normal=200, narrow=350, channel_length=200,
+                           ramp=150, wide_length=(600, 1000) if self.random_assets else (800, 800),
+                           v_speed=speed, rng=self.rng)
 
         self.enemy_randomizer = self.enemy_spawn_distance
         self.prop_randomizer = self.prop_spawn_distance
@@ -181,7 +182,7 @@ class RiverRaid:
             if data is not None:
                 enemy_name, pos_h, vel_h = data
                 enemy = self._spawn(enemy_name, 'enemy', [pos_h, 0], self.settings['enemy_speed']*vel_h)
-                enemy.set_walls(self.walls.return_wall_coordinate(0))
+                enemy.set_walls(self.walls.narrowest(0, self.cg[enemy_name][1] + 4))
                 self.enemies.append(enemy)
 
         elif (self.travel_distance-self.last_enemy_spawn) > self.enemy_randomizer:
@@ -189,16 +190,15 @@ class RiverRaid:
             self.enemy_randomizer = self.rng.randint(int(self.enemy_spawn_distance*0.5), int(self.enemy_spawn_distance*1.5))
 
             enemy_name = self.rng.choice(self.enemy_names)
-            # get the wall coordinates at y=0 and at the bottom of the CG for spawning
-            wall_1 = self.walls.return_wall_coordinate(0)
-            wall_2 = self.walls.return_wall_coordinate(self.cg[enemy_name][1]*3)
-
-            # do not spawn while the river narrows
-            if wall_1[0] >= wall_2[0]:
-                pos_h = self.rng.randint(wall_1[0], wall_1[1]-self.cg[enemy_name][0])
+            width, height = self.cg[enemy_name]
+            # the river at every row of the enemy. Enemies scroll with the river, so these banks
+            # stay the enemy's banks for its whole life (+4: it moves once before the river does)
+            wall = self.walls.narrowest(0, height + 4)
+            if wall[1] - wall[0] >= width + 4:
+                pos_h = self.rng.randint(wall[0], wall[1]-width)
                 vel_h = self.rng.randint(0, 1)
                 enemy = self._spawn(enemy_name, 'enemy', [pos_h, 0], self.settings['enemy_speed']*vel_h)
-                enemy.set_walls(wall_1)
+                enemy.set_walls(wall)
                 self.enemies.append(enemy)
 
     '''
@@ -218,14 +218,13 @@ class RiverRaid:
             self.last_prop_spawn = self.travel_distance
             self.prop_randomizer = self.rng.randint(int(self.prop_spawn_distance*0.3), int(self.prop_spawn_distance*1.3))
 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            wall_2 = self.walls.return_wall_coordinate(self.cg['prop'][1])
-            wall = min(wall_1, wall_2)
-
-            pos_h = self.rng.choice([self.rng.randint(0, wall[0]-self.cg['prop'][0]),
-                                     self.rng.randint(wall[1], self.settings['width']-self.cg['prop'][0])])
+            # on the land at every row of the prop
+            bank = self.walls.thinnest_bank(0, self.cg['prop'][1] + 4)
+            width = self.settings['width']
+            pos_h = self.rng.choice([self.rng.randint(0, bank-self.cg['prop'][0]),
+                                     self.rng.randint(width-bank, width-self.cg['prop'][0])])
             prop = self._spawn(self.rng.choice(self.prop_names), 'prop', [pos_h, 0])
-            prop.set_walls(wall)
+            prop.set_walls([bank, width-bank])
             self.props.append(prop)
 
     '''
@@ -237,19 +236,18 @@ class RiverRaid:
         if not self.random_assets:
             if data is not None:
                 fuel = self._spawn('fuel', 'fuel', [data[1], 0])
-                fuel.set_walls(self.walls.return_wall_coordinate(0))
+                fuel.set_walls(self.walls.narrowest(0, self.cg['fuel'][1] + 4))
                 self.fuels.append(fuel)
 
         elif (self.travel_distance-self.last_fuel_spawn) > self.fuel_randomizer:
             self.last_fuel_spawn = self.travel_distance
             self.fuel_randomizer = self.rng.randint(int(self.fuel_spawn_distance*0.3), int(self.fuel_spawn_distance*1.5))
 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            wall_2 = self.walls.return_wall_coordinate(self.cg['fuel'][1]*2.5)
-            if wall_1[0] >= wall_2[0]:
-                pos_h = self.rng.randint(wall_1[0], wall_1[1]-self.cg['fuel'][0])
+            wall = self.walls.narrowest(0, self.cg['fuel'][1] + 4)
+            if wall[1] - wall[0] >= self.cg['fuel'][0] + 4:
+                pos_h = self.rng.randint(wall[0], wall[1]-self.cg['fuel'][0])
                 fuel = self._spawn('fuel', 'fuel', [pos_h, 0])
-                fuel.set_walls(wall_1)
+                fuel.set_walls(wall)
                 self.fuels.append(fuel)
 
     '''
@@ -439,16 +437,7 @@ class RiverRaid:
         gray = lambda k: (self.CLEAN[k],) * 3
         canvas.fill(gray('water') if clean else self.background)
 
-        # half resolution pixel i shows full resolution pixel 2i+1 (relative to the crop)
-        def half_rect(r):
-            x, y, rw, rh = (int(v) for v in r)
-            if rw <= 0 or rh <= 0:
-                return [0, 0, 0, 0]
-            x -= crop[0]
-            x0, y0 = x // 2, y // 2                       # first i with 2i+1 >= x
-            return [x0, y0, (x + rw - 2) // 2 - x0 + 1, (y + rh - 2) // 2 - y0 + 1]
-
-        self.walls.render(canvas, half_rect, color=gray('bank') if clean else None)
+        self.walls.render(canvas, color=gray('bank') if clean else None, half_res_crop=crop)
 
         def blit(icon, pos, kind):
             x, y = int(pos[0]) - crop[0], int(pos[1])

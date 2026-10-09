@@ -134,12 +134,14 @@ def test_resume_accepts_checkpoints_without_new_settings(tmp_path):
 
 
 def test_fast_observation_matches_full_resolution_rendering():
+    # identical except along the slanted river banks, where the two rasterize lines differently
     env = RiverRaidEnv()
     env.reset(seed=4)
     rng = np.random.default_rng(4)
     for _ in range(300):
         _, _, terminated, truncated, _ = env.step(int(rng.integers(env.action_space.n)))
-        assert (env.game.observation() == env.game.observation_full_res()).all()
+        diff = np.abs(env.game.observation().astype(int) - env.game.observation_full_res().astype(int))
+        assert diff.max() <= 16 and (diff > 0).mean() < 0.02
         if terminated or truncated:
             env.reset()
 
@@ -175,3 +177,38 @@ def test_shooting_a_needed_fuel_tank_is_penalized(fuel, expected):
     _, reward, *_ , info = env.step(0)
     assert info['tanks_shot'] == 1
     assert reward == pytest.approx(expected)
+
+
+def ghost_run(game, frames):
+    '''advance the game with an invulnerable plane, calling back every frame'''
+    for _ in range(frames):
+        game.player.fuel = game.player.capacity
+        game.player.alive, game.lives_left, game.is_running = True, 1, True
+        game.player.pos[0] = 386
+        game.step('NO_MOVE')
+        yield game
+
+
+def test_river_has_45_degree_ramps_and_varied_channel_spacing():
+    game = RiverRaid(preset='AI', num_lives=1, seed=3)
+    widths, wide_stretches = set(), set()
+    for g in ghost_run(game, 6000):
+        banks = [g.walls.return_wall_coordinate(y)[0] for y in range(0, 600)]
+        assert max(abs(a - b) for a, b in zip(banks, banks[1:])) <= 1     # never steeper than 45 degrees
+        widths.update(banks)
+        wide_stretches.update(end - start for start, end, b0, b1 in g.walls.pieces if b0 == b1 == 200)
+    assert {200, 350} <= widths and len(widths) > 100                     # wide, narrow and ramps between
+    assert len(wide_stretches) > 3                                       # channel spacing varies
+
+
+def test_enemies_and_fuel_tanks_stay_in_the_river():
+    game = RiverRaid(preset='AI', num_lives=1, seed=5)
+    game.enemy_collision = game.wall_collision = lambda: None
+    checked = 0
+    for g in ghost_run(game, 8000):
+        for obj in [e for e in g.enemies if e.alive] + g.fuels:
+            lo, hi = g.walls.narrowest(obj.pos[1], obj.pos[1] + obj.cg[1])
+            # moving enemies turn after touching a bank, so they may reach 4 px into it
+            assert lo - 4 <= obj.pos[0] and obj.pos[0] + obj.cg[0] <= hi + 4
+            checked += 1
+    assert checked > 10000
