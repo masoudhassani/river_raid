@@ -29,3 +29,4 @@ include = ["river_raid*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]   # lets the tests import the scripts (pretrain.py)

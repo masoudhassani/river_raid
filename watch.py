@@ -1,7 +1,7 @@
 """Watch a trained agent play, or record a video/gif of it.
 
-    python watch.py runs/<run>/best.pt
-    python watch.py runs/<run>/best.pt --record media/agent.gif --episodes 1
+    python watch.py models/hunter.pt
+    python watch.py models/hunter.pt --record media/agent.gif --episodes 1 --max-minutes 1
 """
 import argparse
 
@@ -22,6 +22,8 @@ def main():
     parser.add_argument('--record', default='', help='save a .gif/.mp4 instead of opening a window')
     parser.add_argument('--video-fps', type=float, default=15,
                         help='one video frame per agent step (4 game frames), 15 fps = 2x real time')
+    parser.add_argument('--max-minutes', type=float, default=0,
+                        help='end a game after this many minutes of game time (0: play until it crashes)')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--sound', action='store_true')
     args = parser.parse_args()
@@ -29,7 +31,7 @@ def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     agent, cfg = load_agent(args.checkpoint, device)
     env_kwargs = cfg.env_kwargs()
-    env_kwargs['max_episode_frames'] = 10**9   # let it play until it crashes
+    env_kwargs['max_episode_frames'] = int(args.max_minutes * 60 * 30) or 10**9
     env = RiverRaidEnv(render_mode='rgb_array' if args.record else 'human', sound=args.sound, **env_kwargs)
 
     frames, scores = [], []

@@ -25,6 +25,7 @@ class Config:
     log_dir: str = 'runs'
     seed: int = 1
     resume: str = ''                    # path to a checkpoint to continue training from
+    init_from: str = ''                 # start a new run from these network weights (any reward settings)
     device: str = 'auto'                # auto | cuda | cpu
     bf16: bool = False                  # bfloat16 autocast (Ampere GPUs, e.g. RTX 3090)
     compile: bool = False               # torch.compile the network
@@ -58,6 +59,7 @@ class Config:
     frame_skip: int = 4
     frame_stack: int = 4
     obs_size: int = 96
+    obs_style: str = 'pixels'           # pixels: the game as drawn | clean: high contrast silhouettes
     max_episode_frames: int = 54_000    # 30 minutes of game play at 30 FPS
     reward_scale: float = 0.01
     survival_reward: float = 0.01
@@ -66,16 +68,20 @@ class Config:
     reversal_penalty: float = 0.05
     reversal_window: int = 4
     death_penalty: float = 2.0
+    escape_penalty: float = 0.0         # per enemy that leaves the screen alive, keep it below ~0.5
+    low_fuel_shot_penalty: float = 0.0  # for shooting a fuel tank below refuel_below fuel (0: off)
     fuel_capacity: int = 7200           # 1 minute of flight
     refuel_rate: int = 60
 
     def env_kwargs(self):
         return dict(frame_skip=self.frame_skip, frame_stack=self.frame_stack, obs_size=self.obs_size,
+                    obs_style=self.obs_style,
                     max_episode_frames=self.max_episode_frames, reward_scale=self.reward_scale,
                     survival_reward=self.survival_reward, refuel_reward=self.refuel_reward,
                     refuel_below=self.refuel_below, reversal_penalty=self.reversal_penalty,
                     reversal_window=self.reversal_window,
-                    death_penalty=self.death_penalty, fuel_capacity=self.fuel_capacity,
+                    death_penalty=self.death_penalty, escape_penalty=self.escape_penalty,
+                    low_fuel_shot_penalty=self.low_fuel_shot_penalty, fuel_capacity=self.fuel_capacity,
                     refuel_rate=self.refuel_rate)
 
     def network_kwargs(self):
@@ -157,8 +163,13 @@ def train(cfg: Config):
     ckpt = torch.load(cfg.resume, map_location=device, weights_only=False) if cfg.resume else None
     if ckpt:
         # the network and the environment must match the checkpoint, whatever the command line says
+        # (settings added after the checkpoint was written keep their defaults)
+        defaults = {f.name: f.default for f in dataclasses.fields(Config)}
         for key in ('channels', 'hidden', *cfg.env_kwargs()):
-            setattr(cfg, key, ckpt['config'][key])
+            value = ckpt['config'].get(key, defaults[key])
+            if getattr(cfg, key) != value:
+                print('--resume: ignoring {}={}, the checkpoint was trained with {}'.format(key, getattr(cfg, key), value))
+            setattr(cfg, key, value)
     run_name = cfg.run_name or (os.path.basename(os.path.dirname(cfg.resume)) if ckpt else time.strftime('ppo_%Y%m%d_%H%M%S'))
     run_dir = os.path.join(cfg.log_dir, run_name)
     os.makedirs(run_dir, exist_ok=True)
@@ -186,6 +197,13 @@ def train(cfg: Config):
         normalizer.load_state_dict(ckpt['reward_norm'])
         start_update, global_step, best_score = ckpt['update'] + 1, ckpt['global_step'], ckpt['best_score']
         print('resumed from {} at step {:,}'.format(cfg.resume, global_step))
+    elif cfg.init_from:
+        # only the weights (and the reward scale, if saved): a fresh run, schedule and optimizer
+        init = torch.load(cfg.init_from, map_location=device, weights_only=False)
+        agent.load_state_dict(init['model'])
+        if 'reward_norm' in init:
+            normalizer.load_state_dict(init['reward_norm'])
+        print('initialized the network from {}'.format(cfg.init_from))
     if cfg.compile:
         agent.forward = torch.compile(agent.forward)
     model = agent
@@ -207,7 +225,7 @@ def train(cfg: Config):
 
     next_obs = torch.from_numpy(envs.reset()).to(device)
     next_done = torch.zeros(cfg.num_envs, device=device)
-    recent = {k: deque(maxlen=100) for k in ('score', 'frames', 'kills', 'travel')}
+    recent = {k: deque(maxlen=100) for k in ('score', 'frames', 'kills', 'travel', 'escaped')}
     num_episodes = 0
     print('PPO on {} | {} envs on {} workers | {:,} updates of {:,} steps | obs {} | {:,} parameters'.format(
         device, cfg.num_envs, cfg.num_workers, num_updates, batch_size, obs_shape,
@@ -254,6 +272,10 @@ def train(cfg: Config):
                     writer.add_scalar('episode/score', ep['score'], global_step)
                     writer.add_scalar('episode/minutes_survived', ep['frames'] / 30 / 60, global_step)
                     writer.add_scalar('episode/kills', ep['kills'], global_step)
+                    writer.add_scalar('episode/escaped', ep['escaped'], global_step)
+                    writer.add_scalar('episode/out_of_fuel', float(ep['out_of_fuel']), global_step)
+                    writer.add_scalar('episode/tanks_shot_per_min', ep['tanks_shot'] / (ep['frames'] / 1800), global_step)
+                    writer.add_scalar('episode/kill_ratio', ep['kills'] / max(1, ep['kills'] + ep['escaped']), global_step)
                     writer.add_scalar('episode/travel_km', ep['travel'] / 1000, global_step)
                     writer.add_scalar('episode/steering_changes_per_s', ep['steer_changes'] / (ep['frames'] / 30), global_step)
 

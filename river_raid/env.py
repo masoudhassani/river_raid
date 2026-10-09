@@ -17,9 +17,13 @@ class RiverRaidEnv(gym.Env):
                  + survival_reward per frame alive (the game never gets harder, so a
                    good agent should be able to fly forever)
                  + refuel_reward per frame while refueling with less than refuel_below fuel
+                 - low_fuel_shot_penalty for shooting a fuel tank with less than refuel_below fuel,
+                   and the tank's points are not rewarded (off when 0): only spare tanks pay
                  - reversal_penalty when the plane reverses direction (left <-> right) within
                    reversal_window steps of its last move, which discourages twitchy, unhuman-like
                    back-and-forth steering. Starting, stopping and deliberate turns are free.
+                 - escape_penalty for every enemy that leaves the bottom of the screen alive,
+                   so letting enemies through costs reward (off by default)
                  - death_penalty when the plane crashes or runs out of fuel
                  Points for ramming an enemy do not count as reward.
     Fuel:        a full tank lasts fuel_capacity / 4 frames (default 1800 frames = 1 minute), and
@@ -34,9 +38,9 @@ class RiverRaidEnv(gym.Env):
     def __init__(self, render_mode=None, frame_skip=4, frame_stack=4, obs_size=96,
                  max_episode_frames=54_000, reward_scale=0.01, survival_reward=0.01,
                  refuel_reward=0.15, refuel_below=0.4, reversal_penalty=0.05, reversal_window=4,
-                 death_penalty=2.0, fuel_gauge=True, random_assets=True,
+                 death_penalty=2.0, escape_penalty=0.0, low_fuel_shot_penalty=0.0, fuel_gauge=True, random_assets=True,
                  enemy_spawn=160, prop_spawn=150, fuel_spawn=500, fuel_capacity=7200,
-                 refuel_rate=60, sound=False):
+                 refuel_rate=60, obs_style='pixels', sound=False):
         assert render_mode is None or render_mode in self.metadata['render_modes']
         self.render_mode = render_mode
         self.frame_skip = frame_skip
@@ -50,10 +54,13 @@ class RiverRaidEnv(gym.Env):
         self.reversal_penalty = reversal_penalty
         self.reversal_window = reversal_window
         self.death_penalty = death_penalty
+        self.escape_penalty = escape_penalty
+        self.low_fuel_shot_penalty = low_fuel_shot_penalty
         self._steer = 0           # current horizontal movement: -1 left, 0 none, 1 right
         self._last_dir = 0        # direction of the last move
         self._since_move = 0      # agent steps since the last move
         self.fuel_gauge = fuel_gauge
+        self.obs_style = obs_style
 
         self.game = RiverRaid(preset='AI', render_mode='human' if render_mode == 'human' else None,
                               random=random_assets, init_enemy_spawn=enemy_spawn,
@@ -70,7 +77,7 @@ class RiverRaidEnv(gym.Env):
         return list(ACTIONS)
 
     def _frame(self):
-        frame = self.game.observation(self.obs_size)
+        frame = self.game.observation(self.obs_size, style=self.obs_style)
         if self.fuel_gauge:
             filled = int(round(self.obs_size[1] * self.game.player.fuel / self.game.player.capacity))
             frame[-2:, :filled] = 255
@@ -80,7 +87,8 @@ class RiverRaidEnv(gym.Env):
     def _info(self):
         g = self.game
         return {'score': g.score_value, 'travel': g.travel_distance, 'kills': g.kills,
-                'fuel': g.player.fuel / g.player.capacity, 'frames': g.frame}
+                'fuel': g.player.fuel / g.player.capacity, 'frames': g.frame, 'escaped': g.escaped,
+                'tanks_shot': g.tanks_shot, 'out_of_fuel': not g.player.alive and g.player.fuel <= 0}
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
@@ -106,8 +114,14 @@ class RiverRaidEnv(gym.Env):
         self._steer = steer
         for _ in range(self.frame_skip):
             points = game.score_value - game.ram_points
+            escaped, tanks_shot = game.escaped, game.tanks_shot
+            low_fuel = game.player.fuel < self.refuel_below * game.player.capacity
             game.step(action_name)
             reward += (game.score_value - game.ram_points - points) * self.reward_scale
+            reward -= (game.escaped - escaped) * self.escape_penalty
+            if self.low_fuel_shot_penalty and low_fuel and game.tanks_shot > tanks_shot:
+                shot = game.tanks_shot - tanks_shot
+                reward -= shot * (game.points['fuel'] * self.reward_scale + self.low_fuel_shot_penalty)
             if game.player.alive:
                 reward += self.survival_reward
             if game.refueling and game.player.fuel < self.refuel_below * game.player.capacity:

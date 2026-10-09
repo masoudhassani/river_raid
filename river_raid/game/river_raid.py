@@ -11,7 +11,7 @@ from .bullet import Bullet
 from .enemy import Enemy
 from .entity import Entity
 from .player import Player
-from .walls import Walls
+from .walls import River
 
 
 class RiverRaid:
@@ -124,10 +124,11 @@ class RiverRaid:
                              player_cg=self.cg['player'], sound_list=['media/sound/bullet.wav'], audio=self.audio)
 
         #### WALLS ###############################################
-        self.walls = Walls(scr=self.screen, color=(45, 135, 10), icon_list=[], normal=200, extended=100, channel=350,
-                           max_island=self.settings['width']-200, min_island=200, spawn_dist=800, length=1000,
-                           randomness=0.8 if self.random_assets else 1,
-                           v_speed=speed, block_size=speed, rng=self.rng)
+        # wide stretches (400 px of water) and 200 px long channels (100 px of water), joined by
+        # 45 degree ramps; the deterministic game uses a fixed spacing
+        self.walls = River(scr=self.screen, color=(45, 135, 10), normal=200, narrow=350, channel_length=200,
+                           ramp=150, wide_length=(600, 1000) if self.random_assets else (800, 800),
+                           v_speed=speed, rng=self.rng)
 
         self.enemy_randomizer = self.enemy_spawn_distance
         self.prop_randomizer = self.prop_spawn_distance
@@ -147,6 +148,8 @@ class RiverRaid:
         self.refueling = False   # True while the player is over a fuel tank
         self.kills = 0
         self.ram_points = 0      # points earned by crashing into enemies (not shooting them)
+        self.escaped = 0         # enemies that left the bottom of the screen alive
+        self.tanks_shot = 0      # fuel tanks destroyed by the bullet
         self.frame = 0
 
     def _spawn(self, name, ent_type, pos, h_speed=0, icon=None):
@@ -172,13 +175,14 @@ class RiverRaid:
     creates enemies with a random horizontal position
     '''
     def create_enemies(self, data=None):
+        self.escaped += sum(1 for x in self.enemies if x.alive and x.pos[1] > self.settings['height'])
         self.enemies = [x for x in self.enemies if x.is_active()]
 
         if not self.random_assets:
             if data is not None:
                 enemy_name, pos_h, vel_h = data
                 enemy = self._spawn(enemy_name, 'enemy', [pos_h, 0], self.settings['enemy_speed']*vel_h)
-                enemy.set_walls(self.walls.return_wall_coordinate(0))
+                enemy.set_walls(self.walls.narrowest(0, self.cg[enemy_name][1] + 4))
                 self.enemies.append(enemy)
 
         elif (self.travel_distance-self.last_enemy_spawn) > self.enemy_randomizer:
@@ -186,16 +190,15 @@ class RiverRaid:
             self.enemy_randomizer = self.rng.randint(int(self.enemy_spawn_distance*0.5), int(self.enemy_spawn_distance*1.5))
 
             enemy_name = self.rng.choice(self.enemy_names)
-            # get the wall coordinates at y=0 and at the bottom of the CG for spawning
-            wall_1 = self.walls.return_wall_coordinate(0)
-            wall_2 = self.walls.return_wall_coordinate(self.cg[enemy_name][1]*3)
-
-            # do not spawn while the river narrows
-            if wall_1[0] >= wall_2[0]:
-                pos_h = self.rng.randint(wall_1[0], wall_1[1]-self.cg[enemy_name][0])
+            width, height = self.cg[enemy_name]
+            # the river at every row of the enemy. Enemies scroll with the river, so these banks
+            # stay the enemy's banks for its whole life (+4: it moves once before the river does)
+            wall = self.walls.narrowest(0, height + 4)
+            if wall[1] - wall[0] >= width + 4:
+                pos_h = self.rng.randint(wall[0], wall[1]-width)
                 vel_h = self.rng.randint(0, 1)
                 enemy = self._spawn(enemy_name, 'enemy', [pos_h, 0], self.settings['enemy_speed']*vel_h)
-                enemy.set_walls(wall_1)
+                enemy.set_walls(wall)
                 self.enemies.append(enemy)
 
     '''
@@ -215,14 +218,13 @@ class RiverRaid:
             self.last_prop_spawn = self.travel_distance
             self.prop_randomizer = self.rng.randint(int(self.prop_spawn_distance*0.3), int(self.prop_spawn_distance*1.3))
 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            wall_2 = self.walls.return_wall_coordinate(self.cg['prop'][1])
-            wall = min(wall_1, wall_2)
-
-            pos_h = self.rng.choice([self.rng.randint(0, wall[0]-self.cg['prop'][0]),
-                                     self.rng.randint(wall[1], self.settings['width']-self.cg['prop'][0])])
+            # on the land at every row of the prop
+            bank = self.walls.thinnest_bank(0, self.cg['prop'][1] + 4)
+            width = self.settings['width']
+            pos_h = self.rng.choice([self.rng.randint(0, bank-self.cg['prop'][0]),
+                                     self.rng.randint(width-bank, width-self.cg['prop'][0])])
             prop = self._spawn(self.rng.choice(self.prop_names), 'prop', [pos_h, 0])
-            prop.set_walls(wall)
+            prop.set_walls([bank, width-bank])
             self.props.append(prop)
 
     '''
@@ -234,19 +236,18 @@ class RiverRaid:
         if not self.random_assets:
             if data is not None:
                 fuel = self._spawn('fuel', 'fuel', [data[1], 0])
-                fuel.set_walls(self.walls.return_wall_coordinate(0))
+                fuel.set_walls(self.walls.narrowest(0, self.cg['fuel'][1] + 4))
                 self.fuels.append(fuel)
 
         elif (self.travel_distance-self.last_fuel_spawn) > self.fuel_randomizer:
             self.last_fuel_spawn = self.travel_distance
             self.fuel_randomizer = self.rng.randint(int(self.fuel_spawn_distance*0.3), int(self.fuel_spawn_distance*1.5))
 
-            wall_1 = self.walls.return_wall_coordinate(0)
-            wall_2 = self.walls.return_wall_coordinate(self.cg['fuel'][1]*2.5)
-            if wall_1[0] >= wall_2[0]:
-                pos_h = self.rng.randint(wall_1[0], wall_1[1]-self.cg['fuel'][0])
+            wall = self.walls.narrowest(0, self.cg['fuel'][1] + 4)
+            if wall[1] - wall[0] >= self.cg['fuel'][0] + 4:
+                pos_h = self.rng.randint(wall[0], wall[1]-self.cg['fuel'][0])
                 fuel = self._spawn('fuel', 'fuel', [pos_h, 0])
-                fuel.set_walls(wall_1)
+                fuel.set_walls(wall)
                 self.fuels.append(fuel)
 
     '''
@@ -308,6 +309,7 @@ class RiverRaid:
                 f.alive = False
                 self._explode(f.pos)
                 self.score_value += self.points['fuel']
+                self.tanks_shot += 1
 
         self.refueling = collision and self.player.alive
         return collision
@@ -409,11 +411,84 @@ class RiverRaid:
     '''
     grayscale, down-sampled observation of the playing field
     crop: x range of the screen that is kept, the player can never leave it
+
+    The world is drawn straight onto a half resolution canvas. That gives exactly the image of
+    drawing the full 800x600 screen and keeping every second pixel (what pygame's 2x
+    nearest-neighbour scale does), with a quarter of the memory traffic. Memory bandwidth, not
+    CPU, limited how many environments could run in parallel.
     '''
-    def observation(self, size=(96, 96), crop=(100, 700)):
+    # gray level of every object in the 'clean' observation style
+    CLEAN = {'water': 0, 'bank': 70, 'player': 110, 'fuel': 150, 'bullet': 200, 'ship': 220, 'helicopter': 255}
+
+    def observation(self, size=(96, 96), crop=(100, 700), style='pixels'):
+        '''
+        style='pixels': the game as drawn on screen, in grayscale.
+        style='clean':  black water, gray banks and every object as a flat silhouette with its own
+                        gray level (CLEAN), decorations and explosions left out. In grayscale the
+                        game's dark green helicopters and ships are barely darker than the blue water,
+                        and after the 6x down-scaling they are faint 5x3 pixel smudges.
+        '''
+        clean = style == 'clean'
+        w, h = (crop[1] - crop[0]) // 2, self.settings['height'] // 2
+        if getattr(self, '_canvas', None) is None or self._canvas.get_size() != (w, h):
+            self._canvas = pg.Surface((w, h), 0, self.screen)
+            self._half_sprites = {}
+        canvas = self._canvas
+        gray = lambda k: (self.CLEAN[k],) * 3
+        canvas.fill(gray('water') if clean else self.background)
+
+        self.walls.render(canvas, color=gray('bank') if clean else None, half_res_crop=crop)
+
+        def blit(icon, pos, kind):
+            x, y = int(pos[0]) - crop[0], int(pos[1])
+            phase = ((x + 1) % 2, (y + 1) % 2)           # first sprite pixel that lands on the canvas
+            flat = self.CLEAN[kind] if clean else None
+            key = (icon, phase, flat)
+            small = self._half_sprites.get(key)
+            if small is None:
+                small = self._half_sprites[key] = self._half_sprite(icon, *phase, flat=flat)
+            canvas.blit(small, (x // 2, y // 2))             # first i with 2i+1 >= x
+
+        for f in self.fuels:
+            blit(f.current_icon, f.pos, 'fuel')
+        for e in self.enemies:
+            blit(e.current_icon, e.pos, e.name)
+        if self.player.alive or not clean:
+            blit(self.player.current_icon, self.player.pos, 'player')
+        if self.bullet.state == 'fired':
+            blit(self.bullet.icons[0], self.bullet.pos, 'bullet')
+        if not clean:
+            for p in self.props:
+                blit(p.current_icon, p.pos, 'prop')
+            for e in self.explosions:
+                blit(e.current_icon, e.pos, 'explosion')
+
+        small = pg.transform.smoothscale(canvas, size)
+        rgb = pg.surfarray.pixels3d(small)   # (w, h, 3)
+        gray = rgb[..., 0]*0.299 + rgb[..., 1]*0.587 + rgb[..., 2]*0.114
+        del rgb   # release the surface lock
+        return gray.T.astype(np.uint8)       # (h, w)
+
+    @staticmethod
+    def _half_sprite(icon, px, py, flat=None):
+        '''every second pixel of icon, starting at pixel (px, py), with its transparency.
+        flat: draw it as a solid silhouette of this gray level instead'''
+        w, h = icon.get_size()
+        out = pg.Surface(((w - px + 1) // 2, (h - py + 1) // 2), pg.SRCALPHA, 32)
+        if out.get_width() and out.get_height():
+            alpha = pg.surfarray.pixels_alpha(icon)[px::2, py::2]
+            if flat is None:
+                pg.surfarray.pixels3d(out)[:] = pg.surfarray.pixels3d(icon)[px::2, py::2]
+                pg.surfarray.pixels_alpha(out)[:] = alpha
+            else:
+                pg.surfarray.pixels3d(out)[:] = flat
+                pg.surfarray.pixels_alpha(out)[:] = np.where(alpha > 127, 255, 0)
+        return out
+
+    def observation_full_res(self, size=(96, 96), crop=(100, 700)):
+        '''the original (slower) observation: draw the full screen, then shrink it. Kept as a reference.'''
         self.draw()
         region = self.screen.subsurface((crop[0], 0, crop[1]-crop[0], self.settings['height']))
-        # a cheap 2x nearest-neighbour pass first (the thinnest sprite, the bullet, is 2 px wide)
         half = pg.transform.scale(region, (region.get_width()//2, region.get_height()//2))
         small = pg.transform.smoothscale(half, size)
         rgb = pg.surfarray.pixels3d(small)   # (w, h, 3)
