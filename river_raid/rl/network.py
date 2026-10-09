@@ -50,7 +50,10 @@ class ActorCritic(nn.Module):
 
     def forward(self, obs):
         z = self.encoder(obs.float() / 255.0)
-        return self.actor(z), self.critic(z).squeeze(-1)
+        # the heads always run in float32: PPO's probability ratios are too sensitive for bfloat16
+        with torch.autocast(z.device.type, enabled=False):
+            z = z.float()
+            return self.actor(z), self.critic(z).squeeze(-1)
 
     def value(self, obs):
         return self.forward(obs)[1]
