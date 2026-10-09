@@ -65,3 +65,13 @@ def test_resume_uses_checkpoint_architecture(tmp_path):
     train(parse_args(['--total-steps', '256', '--resume', f'{run_dir}/latest.pt', *common]))
     ckpt = torch.load(f'{run_dir}/latest.pt', weights_only=False)
     assert ckpt['config']['channels'] == '8,8,8' and ckpt['global_step'] == 256
+
+
+def test_init_from_starts_a_new_run_with_given_weights(tmp_path):
+    common = ['--num-envs', '2', '--num-steps', '16', '--num-workers', '0', '--log-dir', str(tmp_path),
+              '--device', 'cpu', '--channels', '8,8,8']
+    first = train(parse_args(['--total-steps', '32', '--run-name', 'a', *common]))
+    second = train(parse_args(['--total-steps', '32', '--run-name', 'b', '--escape-penalty', '0.5',
+                               '--init-from', f'{first}/latest.pt', *common]))
+    ckpt = torch.load(f'{second}/latest.pt', weights_only=False)
+    assert ckpt['global_step'] == 32 and ckpt['config']['escape_penalty'] == 0.5

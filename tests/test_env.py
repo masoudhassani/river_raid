@@ -99,3 +99,79 @@ def test_ramming_an_enemy_is_not_rewarded():
     _, reward, terminated, _, info = env.step(0)
     assert terminated and info['score'] == 60       # the game still shows the points
     assert reward == pytest.approx(-2.0)            # but the agent only gets the death penalty
+
+
+def test_escaped_enemy_is_penalized():
+    env = RiverRaidEnv(escape_penalty=0.5, survival_reward=0.0, frame_skip=1)
+    env.reset(seed=0)
+    game = env.game
+    game.enemies.clear()
+    # a helicopter just about to leave the bottom of the screen, away from the plane
+    enemy = game._spawn('helicopter', 'enemy', [210, game.settings['height'] - 2])
+    enemy.set_walls(game.walls.return_wall_coordinate(0))
+    game.enemies.append(enemy)
+    rewards = [env.step(0)[1] for _ in range(2)]
+    assert game.escaped == 1 and env._info()['escaped'] == 1
+    assert sum(rewards) == pytest.approx(-0.5)
+    # a shot-down enemy that scrolls off the screen is not an escape
+    dead = game._spawn('ship', 'enemy', [300, game.settings['height'] - 2])
+    dead.alive = False
+    game.enemies.append(dead)
+    env.step(0); env.step(0)
+    assert game.escaped == 1
+
+
+def test_resume_accepts_checkpoints_without_new_settings(tmp_path):
+    from river_raid.rl.ppo import parse_args, train
+    import torch
+    common = ['--num-envs', '2', '--num-steps', '16', '--num-workers', '0', '--log-dir', str(tmp_path),
+              '--device', 'cpu', '--save-every', '1', '--channels', '8,8,8']
+    run_dir = train(parse_args(['--total-steps', '32', '--run-name', 'old', *common]))
+    ckpt = torch.load(f'{run_dir}/latest.pt', weights_only=False)
+    del ckpt['config']['escape_penalty']          # like a checkpoint written before the option existed
+    torch.save(ckpt, f'{run_dir}/latest.pt')
+    train(parse_args(['--total-steps', '64', '--resume', f'{run_dir}/latest.pt', *common]))
+
+
+def test_fast_observation_matches_full_resolution_rendering():
+    env = RiverRaidEnv()
+    env.reset(seed=4)
+    rng = np.random.default_rng(4)
+    for _ in range(300):
+        _, _, terminated, truncated, _ = env.step(int(rng.integers(env.action_space.n)))
+        assert (env.game.observation() == env.game.observation_full_res()).all()
+        if terminated or truncated:
+            env.reset()
+
+
+def test_clean_observation_style():
+    env = RiverRaidEnv(obs_style='clean')
+    env.reset(seed=0)
+    game = env.game
+    game.enemies.clear(); game.fuels.clear()
+    enemy = game._spawn('helicopter', 'enemy', [380, 200])
+    enemy.set_walls(game.walls.return_wall_coordinate(0))
+    game.enemies.append(enemy)
+    frame = game.observation(style='clean')
+    water = frame[10:20, 40:56]
+    assert (water == RiverRaid.CLEAN['water']).all()
+    # the helicopter stands out from the black water
+    assert frame[30:40, 40:56].max() > 150
+
+
+@pytest.mark.parametrize('fuel, expected', [(0.3, -1.0), (0.9, 1.6)])   # needed tank: no points, penalty
+def test_shooting_a_needed_fuel_tank_is_penalized(fuel, expected):
+    env = RiverRaidEnv(reward_scale=0.02, survival_reward=0.0, refuel_below=0.6, low_fuel_shot_penalty=1.0,
+                       frame_skip=1)
+    env.reset(seed=0)
+    game = env.game
+    game.enemies.clear(); game.fuels.clear()
+    game.player.fuel = fuel * game.player.capacity
+    tank = game._spawn('fuel', 'fuel', [game.player.pos[0], 300])
+    tank.set_walls(game.walls.return_wall_coordinate(0))
+    game.fuels.append(tank)
+    game.bullet.state = 'fired'
+    game.bullet.pos = [game.player.pos[0] + 13, 300 + 40]
+    _, reward, *_ , info = env.step(0)
+    assert info['tanks_shot'] == 1
+    assert reward == pytest.approx(expected)

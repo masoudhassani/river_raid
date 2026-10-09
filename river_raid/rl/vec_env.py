@@ -43,7 +43,8 @@ class EnvGroup:
             if term or trunc:
                 finished.append({'env': offset + i, 'return': float(self.returns[i]),
                                  'steps': int(self.lengths[i]), 'score': info['score'],
-                                 'kills': info['kills'], 'travel': info['travel'],
+                                 'kills': info['kills'], 'travel': info['travel'], 'escaped': info['escaped'],
+                                 'out_of_fuel': info['out_of_fuel'], 'tanks_shot': info['tanks_shot'],
                                  'frames': info['frames'], 'truncated': bool(trunc),
                                  'steer_changes': int(self.steer_changes[i]),
                                  # needed to bootstrap the value of truncated episodes

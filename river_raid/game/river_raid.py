@@ -147,6 +147,8 @@ class RiverRaid:
         self.refueling = False   # True while the player is over a fuel tank
         self.kills = 0
         self.ram_points = 0      # points earned by crashing into enemies (not shooting them)
+        self.escaped = 0         # enemies that left the bottom of the screen alive
+        self.tanks_shot = 0      # fuel tanks destroyed by the bullet
         self.frame = 0
 
     def _spawn(self, name, ent_type, pos, h_speed=0, icon=None):
@@ -172,6 +174,7 @@ class RiverRaid:
     creates enemies with a random horizontal position
     '''
     def create_enemies(self, data=None):
+        self.escaped += sum(1 for x in self.enemies if x.alive and x.pos[1] > self.settings['height'])
         self.enemies = [x for x in self.enemies if x.is_active()]
 
         if not self.random_assets:
@@ -308,6 +311,7 @@ class RiverRaid:
                 f.alive = False
                 self._explode(f.pos)
                 self.score_value += self.points['fuel']
+                self.tanks_shot += 1
 
         self.refueling = collision and self.player.alive
         return collision
@@ -409,11 +413,93 @@ class RiverRaid:
     '''
     grayscale, down-sampled observation of the playing field
     crop: x range of the screen that is kept, the player can never leave it
+
+    The world is drawn straight onto a half resolution canvas. That gives exactly the image of
+    drawing the full 800x600 screen and keeping every second pixel (what pygame's 2x
+    nearest-neighbour scale does), with a quarter of the memory traffic. Memory bandwidth, not
+    CPU, limited how many environments could run in parallel.
     '''
-    def observation(self, size=(96, 96), crop=(100, 700)):
+    # gray level of every object in the 'clean' observation style
+    CLEAN = {'water': 0, 'bank': 70, 'player': 110, 'fuel': 150, 'bullet': 200, 'ship': 220, 'helicopter': 255}
+
+    def observation(self, size=(96, 96), crop=(100, 700), style='pixels'):
+        '''
+        style='pixels': the game as drawn on screen, in grayscale.
+        style='clean':  black water, gray banks and every object as a flat silhouette with its own
+                        gray level (CLEAN), decorations and explosions left out. In grayscale the
+                        game's dark green helicopters and ships are barely darker than the blue water,
+                        and after the 6x down-scaling they are faint 5x3 pixel smudges.
+        '''
+        clean = style == 'clean'
+        w, h = (crop[1] - crop[0]) // 2, self.settings['height'] // 2
+        if getattr(self, '_canvas', None) is None or self._canvas.get_size() != (w, h):
+            self._canvas = pg.Surface((w, h), 0, self.screen)
+            self._half_sprites = {}
+        canvas = self._canvas
+        gray = lambda k: (self.CLEAN[k],) * 3
+        canvas.fill(gray('water') if clean else self.background)
+
+        # half resolution pixel i shows full resolution pixel 2i+1 (relative to the crop)
+        def half_rect(r):
+            x, y, rw, rh = (int(v) for v in r)
+            if rw <= 0 or rh <= 0:
+                return [0, 0, 0, 0]
+            x -= crop[0]
+            x0, y0 = x // 2, y // 2                       # first i with 2i+1 >= x
+            return [x0, y0, (x + rw - 2) // 2 - x0 + 1, (y + rh - 2) // 2 - y0 + 1]
+
+        self.walls.render(canvas, half_rect, color=gray('bank') if clean else None)
+
+        def blit(icon, pos, kind):
+            x, y = int(pos[0]) - crop[0], int(pos[1])
+            phase = ((x + 1) % 2, (y + 1) % 2)           # first sprite pixel that lands on the canvas
+            flat = self.CLEAN[kind] if clean else None
+            key = (icon, phase, flat)
+            small = self._half_sprites.get(key)
+            if small is None:
+                small = self._half_sprites[key] = self._half_sprite(icon, *phase, flat=flat)
+            canvas.blit(small, (x // 2, y // 2))             # first i with 2i+1 >= x
+
+        for f in self.fuels:
+            blit(f.current_icon, f.pos, 'fuel')
+        for e in self.enemies:
+            blit(e.current_icon, e.pos, e.name)
+        if self.player.alive or not clean:
+            blit(self.player.current_icon, self.player.pos, 'player')
+        if self.bullet.state == 'fired':
+            blit(self.bullet.icons[0], self.bullet.pos, 'bullet')
+        if not clean:
+            for p in self.props:
+                blit(p.current_icon, p.pos, 'prop')
+            for e in self.explosions:
+                blit(e.current_icon, e.pos, 'explosion')
+
+        small = pg.transform.smoothscale(canvas, size)
+        rgb = pg.surfarray.pixels3d(small)   # (w, h, 3)
+        gray = rgb[..., 0]*0.299 + rgb[..., 1]*0.587 + rgb[..., 2]*0.114
+        del rgb   # release the surface lock
+        return gray.T.astype(np.uint8)       # (h, w)
+
+    @staticmethod
+    def _half_sprite(icon, px, py, flat=None):
+        '''every second pixel of icon, starting at pixel (px, py), with its transparency.
+        flat: draw it as a solid silhouette of this gray level instead'''
+        w, h = icon.get_size()
+        out = pg.Surface(((w - px + 1) // 2, (h - py + 1) // 2), pg.SRCALPHA, 32)
+        if out.get_width() and out.get_height():
+            alpha = pg.surfarray.pixels_alpha(icon)[px::2, py::2]
+            if flat is None:
+                pg.surfarray.pixels3d(out)[:] = pg.surfarray.pixels3d(icon)[px::2, py::2]
+                pg.surfarray.pixels_alpha(out)[:] = alpha
+            else:
+                pg.surfarray.pixels3d(out)[:] = flat
+                pg.surfarray.pixels_alpha(out)[:] = np.where(alpha > 127, 255, 0)
+        return out
+
+    def observation_full_res(self, size=(96, 96), crop=(100, 700)):
+        '''the original (slower) observation: draw the full screen, then shrink it. Kept as a reference.'''
         self.draw()
         region = self.screen.subsurface((crop[0], 0, crop[1]-crop[0], self.settings['height']))
-        # a cheap 2x nearest-neighbour pass first (the thinnest sprite, the bullet, is 2 px wide)
         half = pg.transform.scale(region, (region.get_width()//2, region.get_height()//2))
         small = pg.transform.smoothscale(half, size)
         rgb = pg.surfarray.pixels3d(small)   # (w, h, 3)

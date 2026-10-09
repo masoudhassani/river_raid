@@ -68,36 +68,47 @@ class Walls:
                 if self.travel_per_wall >= self.wall_length:
                     self.travel_per_wall = 0           
 
-    def render(self):
+    def render(self, surface=None, transform=None, color=None):
+        '''draw the banks on surface (default: the game screen). transform maps a full resolution
+        rect [x, y, w, h] to the rect drawn on surface, e.g. for a down-scaled observation canvas.
+        color overrides the colour of all banks.'''
+        surface = surface or self.screen
+        override = color
+
+        def rect(color, r):
+            if transform is not None:
+                r = transform(r)
+            pg.draw.rect(surface, override or color, r)
+
         # symmetric walls with channels and extensions 
         if self.symmetric:
 
             if self.travel_per_wall < self.wall_length - self.channel_length:
                 if not self.channel_visible:
-                    pg.draw.rect(self.screen, self.color, [0, 0, self.normal, self.screen_height])
-                    pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, 0, self.normal, self.screen_height])
+                    rect(self.color, [0, 0, self.normal, self.screen_height])
+                    rect(self.color, [self.screen_width-self.normal, 0, self.normal, self.screen_height])
                 
                 else:
-                    pg.draw.rect(self.screen, self.color, [0, self.travel_per_wall, self.channel, self.channel_length])
-                    pg.draw.rect(self.screen, self.color, [self.screen_width-self.channel, self.travel_per_wall, self.channel, self.channel_length])   
-                    pg.draw.rect(self.screen, self.color, [0, self.travel_per_wall+self.channel_length, self.normal, 
+                    rect(self.color, [0, self.travel_per_wall, self.channel, self.channel_length])
+                    rect(self.color, [self.screen_width-self.channel, self.travel_per_wall, self.channel, self.channel_length])   
+                    rect(self.color, [0, self.travel_per_wall+self.channel_length, self.normal, 
                                                             self.screen_height-(self.travel_per_wall+self.channel_length)])
-                    pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, self.travel_per_wall+self.channel_length, self.normal, 
+                    rect(self.color, [self.screen_width-self.normal, self.travel_per_wall+self.channel_length, self.normal, 
                                                             self.screen_height-(self.travel_per_wall+self.channel_length)])
-                    pg.draw.rect(self.screen, self.color, [0, 0, self.normal, self.travel_per_wall])
-                    pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, 0, self.normal, self.travel_per_wall])   
+                    rect(self.color, [0, 0, self.normal, self.travel_per_wall])
+                    rect(self.color, [self.screen_width-self.normal, 0, self.normal, self.travel_per_wall])   
 
             else:
                 pos = self.travel_per_wall - (self.wall_length - self.channel_length)
-                pg.draw.rect(self.screen, self.color, [0, 0, self.channel, pos])
-                pg.draw.rect(self.screen, self.color, [self.screen_width-self.channel, 0, self.channel, pos])            
-                pg.draw.rect(self.screen, self.color, [0, pos, self.normal, self.screen_height-pos])
-                pg.draw.rect(self.screen, self.color, [self.screen_width-self.normal, pos, self.normal, self.screen_height-pos])     
+                rect(self.color, [0, 0, self.channel, pos])
+                rect(self.color, [self.screen_width-self.channel, 0, self.channel, pos])            
+                rect(self.color, [0, pos, self.normal, self.screen_height-pos])
+                rect(self.color, [self.screen_width-self.normal, pos, self.normal, self.screen_height-pos])     
 
         # simple wall without symmetry 
         else:
-            pg.draw.rect(self.screen, self.color, [0, 0, self.channel, self.screen_height])
-            pg.draw.rect(self.screen, [62,57,57], [self.screen_width-self.normal, 0, self.normal, self.screen_height])
+            rect(self.color, [0, 0, self.channel, self.screen_height])
+            rect([62,57,57], [self.screen_width-self.normal, 0, self.normal, self.screen_height])
                 
       
     def speed_up(self):
