@@ -47,6 +47,13 @@ python train.py --num-envs 128 --channels 32,64,64 --bf16 --total-steps 10000000
 Game simulation runs on the CPU in `--num-workers` processes (default: all cores but one), the
 network runs on the GPU. Watch `charts/SPS`: if the GPU is underused, raise `--num-envs`.
 
+If after ~5M steps `episode/steering_changes_per_s` is near 0 and the score is flat, the agent has
+settled on flying straight down the middle and shooting. Restart with the original reward, which
+pays for every fuel pickup and keeps the agent moving:
+```
+python train.py --survival-reward 0 --refuel-below 1.0 --death-penalty 1 --gamma 0.99 --reversal-penalty 0
+```
+
 ## Watch a trained agent
 ```
 python watch.py runs/<run>/best.pt                           # opens the game window
