@@ -134,3 +134,5 @@ trainings/
 trainings_backup/
 
 /tf
+runs/
+vis/

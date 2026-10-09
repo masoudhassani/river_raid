@@ -1,10 +1,12 @@
-import random 
+import random
+
 import pygame as pg
+
 
 class Walls:
     def __init__(self, scr, color, icon_list, normal, extended, channel, 
                     max_island, min_island, spawn_dist, length, randomness, 
-                    v_speed, block_size, symmetric=True):
+                    v_speed, block_size, symmetric=True, rng=random):
 
         self.screen = scr 
         self.color = color 
@@ -22,6 +24,7 @@ class Walls:
         self.randomness = randomness
         self.block_size = block_size
         self.symmetric = symmetric
+        self.rng = rng    # random number generator, pass a seeded random.Random for reproducibility
 
         self.travel_total = 0     # total travel distance
         self.travel_per_wall = 0  # travel for each section of wall
@@ -115,7 +118,7 @@ class Walls:
         return x - int(x/y)*y
 
     def init_wall_length(self):
-        random_length = random.randint(self.randomness*self.length, self.length*(2-self.randomness))
+        random_length = self.rng.randint(int(self.randomness*self.length), int(self.length*(2-self.randomness)))
         random_length = int(random_length/self.block_size) * self.block_size
 
         return random_length
