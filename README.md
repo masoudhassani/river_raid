@@ -1,4 +1,4 @@
-# River Raid 2020
+# River Raid
 A recreation of River Raid, the Atari 2600 game, built for reinforcement learning, plus Covid Raid,
 a spin-off made during the 2020 lockdown.
 
